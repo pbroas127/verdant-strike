@@ -1,6 +1,10 @@
 
 import React from 'react';
 import { Player, Item, WORLD_SIZE, RARITY_COLORS, Rarity, StormState } from '../types';
+import pistolLogoUrl from '../Assets/pistollogo.png';
+import arLogoUrl from '../Assets/ARlogo.png';
+import shotgunLogoUrl from '../Assets/Shotgunlogo.png';
+import grenadeLogoUrl from '../Assets/Grenadelogo.png';
 
 interface HUDProps {
   player: Player;
@@ -10,12 +14,17 @@ interface HUDProps {
   isGameOver: boolean;
   placement: number;
   onExit: () => void;
+  supplyDrops?: Array<{ id: string; x: number; y: number }>;
+  isThrowModeActive?: boolean;
+  onInventorySwap?: (from: number, to: number) => void;
+  onInventoryDrop?: (slot: number) => void;
 }
 
-const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit }) => {
+const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop }) => {
+  const [dragFrom, setDragFrom] = React.useState<number | null>(null);
   const currentItem = player.inventory[player.selectedSlot];
   const ammoCount = currentItem?.ammo ?? 0;
-  const isPistol = currentItem?.type === 'pistol';
+  const isGun = currentItem?.type === 'pistol' || currentItem?.type === 'assault_rifle' || currentItem?.type === 'shotgun';
   const isMed = currentItem && ['band_aid', 'medkit', 'heal_potion', 'heal_shot', 'golden_wrap'].includes(currentItem.type);
 
   const getArmorColor = () => {
@@ -27,10 +36,19 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
     return 'bg-red-500';
   };
 
-  const getRarityDmg = (rarity: Rarity) => {
+  const getRarityDmg = (item: typeof currentItem) => {
+    if (!item) return 0;
+    if (item.type === 'assault_rifle') {
+      const arLevels: Record<Rarity, number> = { common: 22, uncommon: 27, rare: 32, epic: 37, legendary: 42 };
+      return arLevels[item.rarity];
+    }
+    if (item.type === 'shotgun') {
+      const sgLevels: Record<Rarity, number> = { common: 50, uncommon: 60, rare: 75, epic: 90, legendary: 110 };
+      return sgLevels[item.rarity];
+    }
     const base = 15;
     const levels: Record<Rarity, number> = { common: 0, uncommon: 3, rare: 6, epic: 9, legendary: 12 };
-    return base + levels[rarity];
+    return base + levels[item.rarity];
   };
 
   const formatTime = (ticks: number) => {
@@ -40,18 +58,30 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const getItemEmoji = (type: string) => {
-    switch(type) {
-      case 'pistol': return '🔫';
-      case 'armor': return '🛡️';
-      case 'band_aid': return '🩹';
-      case 'medkit': return '🎒';
-      case 'heal_potion': return '🧪';
-      case 'heal_shot': return '💉';
-      case 'golden_wrap': return '🩹';
-      case 'ammo_crate': return '📦';
-      default: return '📦';
+  const getItemContent = (item: Item, size: 'sm' | 'lg') => {
+    const px = size === 'sm' ? 'w-8 h-8' : 'w-12 h-12';
+    const arPx = size === 'sm' ? 'w-10 h-10' : 'w-14 h-14';
+    if (item.type === 'pistol') {
+      return <img src={pistolLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
+    if (item.type === 'assault_rifle') {
+      return <img src={arLogoUrl} className={`${arPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'shotgun') {
+      return <img src={shotgunLogoUrl} className={`${arPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'grenade' || item.type === 'smoke_grenade') {
+      return <img src={grenadeLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    const emojiSize = size === 'sm' ? 'text-2xl' : 'text-5xl';
+    const emoji = item.type === 'armor' ? '🛡️'
+      : item.type === 'band_aid' ? '🩹'
+      : item.type === 'medkit' ? '🎒'
+      : item.type === 'heal_potion' ? '🧪'
+      : item.type === 'heal_shot' ? '💉'
+      : item.type === 'golden_wrap' ? '🩹'
+      : '📦';
+    return <span className={`${emojiSize} drop-shadow-md brightness-150`}>{emoji}</span>;
   };
 
   return (
@@ -63,16 +93,37 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
             {placement === 1 ? (
               <>
                 <h1 className="text-yellow-400 text-9xl font-black mb-2 tracking-tighter drop-shadow-[0_0_30px_rgba(234,179,8,0.5)]">VICTORY</h1>
-                <p className="text-white text-3xl font-black italic uppercase mb-12 bg-white/10 px-6 py-2 rounded-full">Winner Winner Chicken Dinner!</p>
+                <p className="text-white text-3xl font-black italic uppercase mb-6 bg-white/10 px-6 py-2 rounded-full">Winner Winner Chicken Dinner!</p>
               </>
             ) : (
               <>
                 <h1 className="text-white text-8xl font-black mb-4 tracking-tighter drop-shadow-2xl">GAME OVER</h1>
-                <p className="text-white/60 text-2xl font-bold mb-12 italic uppercase">You placed <span className="text-red-400">#{placement}</span></p>
+                <p className="text-white/60 text-2xl font-bold mb-6 italic uppercase">You placed <span className="text-red-400">#{placement}</span></p>
               </>
             )}
             
-            <button 
+            <div className="grid grid-cols-2 gap-3 mb-8 w-80">
+              <div className="bg-white/5 rounded-xl px-4 py-3 text-center border border-white/8">
+                <div className="text-white/40 text-[10px] font-black tracking-widest uppercase mb-1">Damage Dealt</div>
+                <div className="text-white font-black text-2xl">{player.damageDealt ?? 0}</div>
+              </div>
+              <div className="bg-white/5 rounded-xl px-4 py-3 text-center border border-white/8">
+                <div className="text-white/40 text-[10px] font-black tracking-widest uppercase mb-1">Damage Taken</div>
+                <div className="text-white font-black text-2xl">{player.damageTaken ?? 0}</div>
+              </div>
+              <div className="bg-white/5 rounded-xl px-4 py-3 text-center border border-white/8">
+                <div className="text-white/40 text-[10px] font-black tracking-widest uppercase mb-1">Shots Fired</div>
+                <div className="text-white font-black text-2xl">{player.shotsFired ?? 0}</div>
+              </div>
+              <div className="bg-white/5 rounded-xl px-4 py-3 text-center border border-white/8">
+                <div className="text-white/40 text-[10px] font-black tracking-widest uppercase mb-1">Accuracy</div>
+                <div className="text-white font-black text-2xl">
+                  {(player.shotsFired ?? 0) > 0 ? Math.round(((player.shotsHit ?? 0) / player.shotsFired!) * 100) : 0}%
+                </div>
+              </div>
+            </div>
+
+            <button
               onClick={onExit}
               className="px-12 py-5 bg-white text-black font-black text-xl rounded-full hover:scale-110 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)]"
             >
@@ -85,31 +136,46 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
       {/* Top Left: Minimap */}
       <div className="absolute top-6 left-6 w-48 h-48 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 overflow-hidden shadow-2xl p-1">
         <div className="w-full h-full relative bg-green-900/30 rounded-xl overflow-hidden">
-          <div 
-            className="absolute border-2 border-white/20 rounded-full"
-            style={{
-              left: `${(storm.x / WORLD_SIZE) * 100}%`,
-              top: `${(storm.y / WORLD_SIZE) * 100}%`,
-              width: `${(storm.targetRadius / WORLD_SIZE) * 200}%`,
-              height: `${(storm.targetRadius / WORLD_SIZE) * 200}%`,
-              transform: 'translate(-50%, -50%)',
-              backgroundColor: 'rgba(255, 255, 255, 0.03)'
-            }}
-          />
-          <div 
-            className="absolute border-2 border-red-500/50 rounded-full"
-            style={{
-              left: `${(storm.x / WORLD_SIZE) * 100}%`,
-              top: `${(storm.y / WORLD_SIZE) * 100}%`,
-              width: `${(storm.radius / WORLD_SIZE) * 200}%`,
-              height: `${(storm.radius / WORLD_SIZE) * 200}%`,
-              transform: 'translate(-50%, -50%)'
-            }}
-          />
-          <div 
+          {/* Current storm edge — only shown when storm is active */}
+          {(storm.phase === 'closing' || storm.phase === 'holding') && (
+            <div
+              className="absolute rounded-full"
+              style={{
+                left: `${(storm.x / WORLD_SIZE) * 100}%`,
+                top: `${(storm.y / WORLD_SIZE) * 100}%`,
+                width: `${(storm.radius / WORLD_SIZE) * 200}%`,
+                height: `${(storm.radius / WORLD_SIZE) * 200}%`,
+                transform: 'translate(-50%, -50%)',
+                border: '2px solid rgba(239,68,68,0.6)',
+              }}
+            />
+          )}
+          {/* Next target outline (shown during safe phases) */}
+          {(storm.phase === 'initial_wait' || storm.phase === 'waiting') && (
+            <div
+              className="absolute rounded-full border-dashed"
+              style={{
+                left: `${(storm.x / WORLD_SIZE) * 100}%`,
+                top: `${(storm.y / WORLD_SIZE) * 100}%`,
+                width: `${(storm.nextTargetRadius / WORLD_SIZE) * 200}%`,
+                height: `${(storm.nextTargetRadius / WORLD_SIZE) * 200}%`,
+                transform: 'translate(-50%, -50%)',
+                border: '2px dashed rgba(255,255,255,0.55)',
+                backgroundColor: 'rgba(255,255,255,0.02)',
+              }}
+            />
+          )}
+          {/* Supply drops — pulsing blue dots */}
+          {supplyDrops.map(sd => (
+            <div key={sd.id} className="absolute z-10" style={{ left:`${(sd.x/WORLD_SIZE)*100}%`, top:`${(sd.y/WORLD_SIZE)*100}%`, transform:'translate(-50%,-50%)' }}>
+              <div className="absolute w-3 h-3 bg-blue-400 rounded-full opacity-60 animate-ping" />
+              <div className="relative w-2 h-2 bg-blue-400 rounded-full border border-yellow-400 shadow-[0_0_6px_rgba(59,130,246,1)]" />
+            </div>
+          ))}
+          <div
             className="absolute w-3 h-3 bg-white rounded-full border border-white shadow-[0_0_8px_rgba(255,255,255,1)] z-10"
-            style={{ 
-              left: `${(player.x / WORLD_SIZE) * 100}%`, 
+            style={{
+              left: `${(player.x / WORLD_SIZE) * 100}%`,
               top: `${(player.y / WORLD_SIZE) * 100}%`,
               transform: 'translate(-50%, -50%)'
             }}
@@ -118,12 +184,28 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
       </div>
 
       {/* Top Center: Storm Timer */}
-      <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center">
+      <div className="absolute top-6 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1">
         <div className="bg-black/60 backdrop-blur-md px-6 py-2 rounded-2xl border border-white/10 shadow-2xl flex items-center gap-4">
-          <span className="text-2xl">{storm.phase === 'waiting' ? '🕘' : '⛈️'}</span>
-          <span className={`text-xl font-black ${storm.phase === 'shrinking' ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+          <span className="text-2xl">
+            {storm.phase === 'holding' ? '💀' : storm.phase === 'closing' ? '⛈️' : '🕘'}
+          </span>
+          <span className={`text-xl font-black ${
+            storm.phase === 'holding' ? 'text-red-500 animate-pulse' :
+            storm.phase === 'closing' ? 'text-orange-400 animate-pulse' :
+            'text-white'
+          }`}>
             {formatTime(storm.timer)}
           </span>
+        </div>
+        <div className={`text-[10px] font-black tracking-widest uppercase px-3 py-0.5 rounded-full ${
+          storm.phase === 'holding' ? 'bg-red-500/30 text-red-300' :
+          storm.phase === 'closing' ? 'bg-orange-500/20 text-orange-300' :
+          'bg-white/10 text-white/50'
+        }`}>
+          {storm.phase === 'initial_wait' ? 'SAFE ZONE' :
+           storm.phase === 'waiting'      ? 'SAFE ZONE' :
+           storm.phase === 'closing'      ? 'STORM CLOSING' :
+                                            'IN STORM'}
         </div>
       </div>
 
@@ -161,18 +243,35 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
               PRESS <span className="underline">E</span> TO USE {currentItem.name.toUpperCase()}
             </div>
           )}
-          <div className="flex gap-2 p-2 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl">
+          {(currentItem?.type === 'grenade' || currentItem?.type === 'smoke_grenade') && (
+            <div className={`${isThrowModeActive ? 'bg-red-500/90 animate-pulse' : 'bg-green-500/90 animate-bounce'} text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg`}>
+              {isThrowModeActive
+                ? 'LEFT CLICK TO THROW · RIGHT CLICK CANCEL'
+                : `PRESS E TO AIM ${currentItem.name.toUpperCase()}`}
+            </div>
+          )}
+          <div className="flex gap-2 p-2 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">
             {player.inventory.map((item, idx) => (
               <div key={idx} className="flex flex-col items-center gap-1">
-                <div 
+                <div
+                  draggable={!!item}
+                  onDragStart={e => { if (item) { setDragFrom(idx); e.dataTransfer.effectAllowed = 'move'; } }}
+                  onDragOver={e => { if (dragFrom !== null) e.preventDefault(); }}
+                  onDrop={e => { e.preventDefault(); if (dragFrom !== null && dragFrom !== idx) onInventorySwap?.(dragFrom, idx); setDragFrom(null); }}
+                  onDragEnd={e => { if (e.dataTransfer.dropEffect === 'none' && dragFrom !== null) onInventoryDrop?.(dragFrom); setDragFrom(null); }}
                   className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200 relative overflow-hidden ${
-                    player.selectedSlot === idx ? 'scale-110 shadow-lg border-white' : 'border-white/10'
+                    item ? 'cursor-grab active:cursor-grabbing' : ''
+                  } ${
+                    player.selectedSlot === idx && dragFrom !== idx ? 'scale-110 shadow-lg border-white' :
+                    dragFrom === idx ? 'opacity-40 border-white/40 scale-95' :
+                    dragFrom !== null ? 'border-white/40 ring-1 ring-white/20' :
+                    'border-white/10'
                   }`}
                   style={{ backgroundColor: item ? `${RARITY_COLORS[item.rarity]}44` : 'rgba(255,255,255,0.05)' }}
                 >
                   {item && (
                     <div className="flex flex-col items-center">
-                      <span className="text-2xl drop-shadow-md">{getItemEmoji(item.type)}</span>
+                      {getItemContent(item, 'sm')}
                       {item.ammo !== undefined && (
                          <span className={`absolute bottom-1 right-1 text-[8px] font-bold bg-black/50 px-1 rounded ${item.ammo === 0 ? 'text-red-500' : 'text-white'}`}>
                            {item.ammo}
@@ -225,12 +324,12 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
         <div className="flex items-center gap-2">
           <span className="text-[10px] font-black tracking-widest opacity-50 uppercase">DMG Output:</span>
           <span className="text-2xl font-black text-blue-400 italic">
-            {isPistol ? getRarityDmg(currentItem.rarity) : '0'}
+            {isGun ? getRarityDmg(currentItem) : '0'}
           </span>
         </div>
         <div className="flex items-end gap-4">
-          <div className={`text-7xl font-black tracking-tighter leading-none ${ammoCount < 10 && isPistol ? 'text-red-500 animate-pulse' : 'text-white'}`}>
-            {isPistol ? ammoCount : '--'}
+          <div className={`text-7xl font-black tracking-tighter leading-none ${ammoCount < 10 && isGun ? 'text-red-500 animate-pulse' : 'text-white'}`}>
+            {isGun ? ammoCount : '--'}
           </div>
           <div 
             className="w-20 h-20 rounded-2xl border-2 flex items-center justify-center shadow-2xl transition-all"
@@ -239,11 +338,7 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
               backgroundColor: currentItem ? `${RARITY_COLORS[currentItem.rarity]}33` : 'rgba(0,0,0,0.4)'
             }}
           >
-            {currentItem ? (
-              <span className="text-5xl brightness-150">
-                {getItemEmoji(currentItem.type)}
-              </span>
-            ) : (
+            {currentItem ? getItemContent(currentItem, 'lg') : (
                <div className="text-[10px] opacity-20 font-black">EMPTY</div>
             )}
           </div>

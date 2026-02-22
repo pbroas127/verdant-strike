@@ -1,11 +1,109 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Crate, EnvObject, Item, WORLD_SIZE } from '../types';
+import { Barrel, Building, Campfire, Crate, EnvObject, Item, SandbagBarrier, WaterBody, WORLD_SIZE } from '../types';
+
+// ─── Building templates ───────────────────────────────────────────────────────
+// All coordinates relative to building center. Wall thickness = 14px.
+interface BTemplate {
+  outerW: number; outerH: number;
+  material: Building['material'];
+  wallRects: Building['wallRects'];
+  interiorBounds: Building['interiorBounds'];
+  crateSpawns: Array<{ x: number; y: number }>;
+}
+const BUILDING_TEMPLATES: BTemplate[] = [
+  // 0: Small Cottage (220×160, wood) — south door, 1 interior partition
+  { outerW:220, outerH:160, material:'wood',
+    wallRects:[
+      {x:0,y:-73,w:220,h:14},{x:-70,y:73,w:80,h:14},{x:70,y:73,w:80,h:14},
+      {x:-103,y:0,w:14,h:160},{x:103,y:0,w:14,h:160},
+      {x:30,y:-44,w:12,h:44},{x:30,y:44,w:12,h:44},
+    ],
+    interiorBounds:{x:0,y:0,w:192,h:132},
+    crateSpawns:[{x:-72,y:-52},{x:-72,y:52},{x:72,y:-52},{x:72,y:52}],
+  },
+  // 1: Warehouse (360×240, metal) — 2 large doors (N+S), 4 interior pillars
+  { outerW:360, outerH:240, material:'metal',
+    wallRects:[
+      {x:-112.5,y:-113,w:135,h:14},{x:112.5,y:-113,w:135,h:14},
+      {x:-112.5,y:113,w:135,h:14},{x:112.5,y:113,w:135,h:14},
+      {x:-173,y:0,w:14,h:240},{x:173,y:0,w:14,h:240},
+      {x:-90,y:-60,w:22,h:22},{x:90,y:-60,w:22,h:22},
+      {x:-90,y:60,w:22,h:22},{x:90,y:60,w:22,h:22},
+    ],
+    interiorBounds:{x:0,y:0,w:332,h:212},
+    crateSpawns:[{x:-148,y:95},{x:148,y:95},{x:-148,y:-95},{x:148,y:-95},{x:0,y:95},{x:0,y:-95}],
+  },
+  // 2: Bunker (280×200, stone) — west door only, 2 partitions with offset gaps
+  { outerW:280, outerH:200, material:'stone',
+    wallRects:[
+      {x:0,y:-93,w:280,h:14},{x:0,y:93,w:280,h:14},
+      {x:-133,y:-60,w:14,h:66},{x:-133,y:60,w:14,h:66},
+      {x:133,y:0,w:14,h:200},
+      {x:-42,y:-54,w:12,h:64},{x:-42,y:54,w:12,h:64},
+      {x:42,y:-68,w:12,h:36},{x:42,y:40,w:12,h:92},
+    ],
+    interiorBounds:{x:0,y:0,w:252,h:172},
+    crateSpawns:[{x:-100,y:-60},{x:-100,y:60},{x:0,y:-70},{x:0,y:70},{x:100,y:-60},{x:100,y:60}],
+  },
+  // 3: Barracks (340×120, wood) — east+west doors, 2 partitions creating 3 bays
+  { outerW:340, outerH:120, material:'wood',
+    wallRects:[
+      {x:0,y:-53,w:340,h:14},{x:0,y:53,w:340,h:14},
+      {x:-163,y:-38,w:14,h:30},{x:-163,y:38,w:14,h:30},
+      {x:163,y:-38,w:14,h:30},{x:163,y:38,w:14,h:30},
+      {x:-113,y:-32,w:12,h:28},{x:-113,y:32,w:12,h:28},
+      {x:113,y:-32,w:12,h:28},{x:113,y:32,w:12,h:28},
+    ],
+    interiorBounds:{x:0,y:0,w:312,h:92},
+    crateSpawns:[{x:-152,y:-32},{x:-152,y:32},{x:0,y:-32},{x:0,y:32},{x:152,y:-32},{x:152,y:32}],
+  },
+  // 4: Guard Post (130×130, stone) — south door, no interior walls
+  { outerW:130, outerH:130, material:'stone',
+    wallRects:[
+      {x:0,y:-58,w:130,h:14},{x:-40,y:58,w:40,h:14},{x:40,y:58,w:40,h:14},
+      {x:-58,y:0,w:14,h:130},{x:58,y:0,w:14,h:130},
+    ],
+    interiorBounds:{x:0,y:0,w:102,h:102},
+    crateSpawns:[{x:-40,y:-40},{x:40,y:-40},{x:-40,y:40},{x:40,y:40}],
+  },
+  // 5: Open-Front Shop (220×140, brick) — large north opening, back room partition
+  { outerW:220, outerH:140, material:'brick',
+    wallRects:[
+      {x:-96,y:-63,w:28,h:14},{x:96,y:-63,w:28,h:14},
+      {x:0,y:63,w:220,h:14},{x:-103,y:0,w:14,h:140},{x:103,y:0,w:14,h:140},
+      {x:-59,y:15,w:74,h:12},{x:59,y:15,w:74,h:12},
+    ],
+    interiorBounds:{x:0,y:0,w:192,h:112},
+    crateSpawns:[{x:-80,y:45},{x:0,y:45},{x:80,y:45},{x:-80,y:-25},{x:80,y:-25}],
+  },
+  // 6: Medical Station (200×170, metal) — north door, horizontal partition
+  { outerW:200, outerH:170, material:'metal',
+    wallRects:[
+      {x:-64,y:-78,w:72,h:14},{x:64,y:-78,w:72,h:14},
+      {x:0,y:78,w:200,h:14},{x:-93,y:0,w:14,h:170},{x:93,y:0,w:14,h:170},
+      {x:-52,y:12,w:82,h:12},{x:52,y:12,w:82,h:12},
+    ],
+    interiorBounds:{x:0,y:0,w:172,h:142},
+    crateSpawns:[{x:-72,y:-50},{x:72,y:-50},{x:-72,y:50},{x:72,y:50},{x:0,y:-50}],
+  },
+  // 7: Watchtower (150×150, stone) — south door, 4 corner pillars
+  { outerW:150, outerH:150, material:'stone',
+    wallRects:[
+      {x:0,y:-68,w:150,h:14},{x:-51,y:68,w:51,h:14},{x:51,y:68,w:51,h:14},
+      {x:-68,y:0,w:14,h:150},{x:68,y:0,w:14,h:150},
+      {x:-40,y:-40,w:16,h:16},{x:40,y:-40,w:16,h:16},
+      {x:-40,y:40,w:16,h:16},{x:40,y:40,w:16,h:16},
+    ],
+    interiorBounds:{x:0,y:0,w:122,h:122},
+    crateSpawns:[{x:0,y:-30},{x:0,y:30},{x:-48,y:-30},{x:48,y:-30}],
+  },
+];
 
 declare const Peer: any;
 
 interface LobbyProps {
-  onLaunch: (code: string, isHost: boolean, peer: any, conn: any, worldData?: any) => void;
+  onLaunch: (code: string, isHost: boolean, peer: any, conn: any, worldData?: any, playerId?: string) => void;
 }
 
 const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
@@ -15,50 +113,339 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
   const [playerCount, setPlayerCount] = useState(1);
   const [isHost, setIsHost] = useState(false);
   const [status, setStatus] = useState('');
-  
+
   const peerRef = useRef<any>(null);
-  const connRef = useRef<any>(null);
+  const connsRef = useRef<any[]>([]);
+  const clientConnRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLaunchingRef = useRef(false);
 
   const cleanupPeer = () => {
-    if (peerRef.current) {
-      peerRef.current.destroy();
-      peerRef.current = null;
+    if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
+    connsRef.current.forEach(c => c?.close());
+    connsRef.current = [];
+    if (clientConnRef.current) { clientConnRef.current.close(); clientConnRef.current = null; }
+  };
+
+  const generateBuildings = (): { buildings: Building[]; buildingCrates: Crate[] } => {
+    const buildings: Building[] = [];
+    const buildingCrates: Crate[] = [];
+    const TARGET = 28;
+    const MIN_DIST = 600;
+    const EDGE = 600;
+    const SCALE = 2;
+    const CRATE_HALF = 28;
+    const CRATE_MARGIN = CRATE_HALF + 8;
+    let attempts = 0;
+
+    while (buildings.length < TARGET && attempts < 2000) {
+      attempts++;
+      const x = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
+      const y = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
+
+      const tooClose = buildings.some(b => Math.hypot(b.x - x, b.y - y) < MIN_DIST);
+      if (tooClose) continue;
+
+      const tmpl = BUILDING_TEMPLATES[Math.floor(Math.random() * BUILDING_TEMPLATES.length)];
+      const building: Building = {
+        id: `bld-${buildings.length}`,
+        x, y,
+        outerW: tmpl.outerW * SCALE, outerH: tmpl.outerH * SCALE,
+        material: tmpl.material,
+        wallRects: tmpl.wallRects.map(wr => ({
+          x: wr.x * SCALE, y: wr.y * SCALE,
+          w: wr.w * SCALE, h: wr.h * SCALE,
+        })),
+        interiorBounds: {
+          x: tmpl.interiorBounds.x * SCALE,
+          y: tmpl.interiorBounds.y * SCALE,
+          w: tmpl.interiorBounds.w * SCALE,
+          h: tmpl.interiorBounds.h * SCALE,
+        },
+      };
+      buildings.push(building);
+
+      // Crates clamped flush inside the interior — no overlap with walls
+      const intCX = x + building.interiorBounds.x;
+      const intCY = y + building.interiorBounds.y;
+      const clampHW = building.interiorBounds.w / 2 - CRATE_MARGIN;
+      const clampHH = building.interiorBounds.h / 2 - CRATE_MARGIN;
+      tmpl.crateSpawns.forEach((sp, i) => {
+        if (Math.random() < 0.75) {
+          const rawX = x + sp.x * SCALE;
+          const rawY = y + sp.y * SCALE;
+          const isGold = Math.random() < 0.35;
+          buildingCrates.push({
+            id: `bld-crate-${buildings.length}-${i}`,
+            x: Math.max(intCX - clampHW, Math.min(intCX + clampHW, rawX)),
+            y: Math.max(intCY - clampHH, Math.min(intCY + clampHH, rawY)),
+            health: isGold ? 6 : 3,
+            maxHealth: isGold ? 6 : 3,
+            isGold,
+          });
+        }
+      });
     }
-    if (connRef.current) {
-      connRef.current.close();
-      connRef.current = null;
+    return { buildings, buildingCrates };
+  };
+
+  const generateCampfires = (buildings: Building[]): Campfire[] => {
+    const campfires: Campfire[] = [];
+    const TARGET = 7;
+    const MIN_DIST_CF = 600;
+    const EDGE = 500;
+    let attempts = 0;
+
+    while (campfires.length < TARGET && attempts < 300) {
+      attempts++;
+      const x = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
+      const y = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
+
+      const nearBuilding = buildings.some(b =>
+        Math.hypot(b.x - x, b.y - y) < Math.max(b.outerW, b.outerH) / 2 + 180
+      );
+      const nearOther = campfires.some(c => Math.hypot(c.x - x, c.y - y) < MIN_DIST_CF);
+      if (nearBuilding || nearOther) continue;
+
+      campfires.push({ id: `cf-${campfires.length}`, x, y, uses: 10, maxUses: 10, regenTimer: 0, healTimer: 0 });
     }
+    return campfires;
   };
 
   const generateWorldData = () => {
     const crates: Crate[] = [];
     const envObjects: EnvObject[] = [];
-    for(let i=0; i<25; i++) {
-      crates.push({ 
-        id: `crate-${i}`, 
-        x: Math.random() * (WORLD_SIZE - 400) + 200, 
-        y: Math.random() * (WORLD_SIZE - 400) + 200, 
-        health: 3, maxHealth: 3 
+    const waterBodies: WaterBody[] = [];
+    const sandbagBarriers: SandbagBarrier[] = [];
+    const barrels: Barrel[] = [];
+
+    const goldPositions = [
+      { x: WORLD_SIZE * 0.50, y: WORLD_SIZE * 0.50 },
+      { x: WORLD_SIZE * 0.25, y: WORLD_SIZE * 0.25 },
+      { x: WORLD_SIZE * 0.75, y: WORLD_SIZE * 0.25 },
+      { x: WORLD_SIZE * 0.25, y: WORLD_SIZE * 0.75 },
+      { x: WORLD_SIZE * 0.75, y: WORLD_SIZE * 0.75 },
+      { x: WORLD_SIZE * 0.50, y: WORLD_SIZE * 0.25 },
+    ];
+    goldPositions.forEach((pos, i) => {
+      crates.push({
+        id: `gold-crate-${i}`,
+        x: pos.x + (Math.random() - 0.5) * 600,
+        y: pos.y + (Math.random() - 0.5) * 600,
+        health: 6, maxHealth: 6, isGold: true
       });
+    });
+
+    for (let i = 0; i < 75; i++) {
+      let cx = 0, cy = 0, cAttempts = 0;
+      do {
+        cx = Math.random() * (WORLD_SIZE - 400) + 200;
+        cy = Math.random() * (WORLD_SIZE - 400) + 200;
+        cAttempts++;
+      } while (cAttempts < 25 && crates.some(c => Math.hypot(c.x - cx, c.y - cy) < 90));
+      crates.push({ id: `crate-${i}`, x: cx, y: cy, health: 3, maxHealth: 3 });
     }
-    const wallTypes = ['stone_wall', 'wood_wall', 'metal_wall'];
-    for(let i=0; i<45; i++) {
+
+    const wallTypes = ['stone_wall', 'wood_wall', 'metal_wall', 'brick_wall', 'mossy_stone_wall'];
+    const longWallTypes = ['long_stone_wall', 'long_wood_wall', 'long_brick_wall', 'long_mossy_wall'];
+
+    for (let i = 0; i < 180; i++) {
       const typeRoll = Math.random();
       let type: any = 'tree';
-      if (typeRoll < 0.25) type = wallTypes[Math.floor(Math.random() * wallTypes.length)];
-      else if (typeRoll < 0.5) type = 'bush';
-      envObjects.push({ 
-        id: `env-${i}`, 
-        x: Math.random() * WORLD_SIZE, 
-        y: Math.random() * WORLD_SIZE, 
-        type, 
-        size: type.includes('wall') ? 30 : 40 + Math.random() * 30, 
-        leafTimer: 300 
-      });
+      let objW: number | undefined, objH: number | undefined;
+
+      if (typeRoll < 0.08) {
+        type = longWallTypes[Math.floor(Math.random() * longWallTypes.length)];
+        const isHoriz = Math.random() > 0.5;
+        objW = isHoriz ? 120 : 30;
+        objH = isHoriz ? 30 : 120;
+      } else if (typeRoll < 0.22) {
+        type = wallTypes[Math.floor(Math.random() * wallTypes.length)];
+      } else if (typeRoll < 0.42) {
+        type = 'bush';
+      }
+
+      let x: number, y: number;
+      do {
+        x = 350 + Math.random() * (WORLD_SIZE - 700);
+        y = 350 + Math.random() * (WORLD_SIZE - 700);
+      } while (
+        (x < 650 && y < 650) ||
+        (x > WORLD_SIZE - 650 && y > WORLD_SIZE - 650)
+      );
+
+      const obj: EnvObject = {
+        id: `env-${i}`,
+        x, y, type,
+        size: type.includes('wall') ? 30 : 38 + Math.random() * 34,
+        leafTimer: 300
+      };
+      if (objW !== undefined) obj.w = objW;
+      if (objH !== undefined) obj.h = objH;
+      envObjects.push(obj);
     }
-    return { crates, envObjects, items: [] as Item[] };
+
+    const borderInset = 130;
+    const borderSpacing = 110;
+    for (let bx = borderInset; bx <= WORLD_SIZE - borderInset; bx += borderSpacing) {
+      const jx = (Math.random() - 0.5) * 18, jy = (Math.random() - 0.5) * 18;
+      envObjects.push({ id: `border-t-${bx}`, x: bx + jx, y: borderInset + jy, type: 'stone_wall', size: 30, leafTimer: 0 });
+      envObjects.push({ id: `border-b-${bx}`, x: bx + jx, y: WORLD_SIZE - borderInset + jy, type: 'stone_wall', size: 30, leafTimer: 0 });
+    }
+    for (let by = borderInset + borderSpacing; by <= WORLD_SIZE - borderInset - borderSpacing; by += borderSpacing) {
+      const jx = (Math.random() - 0.5) * 18, jy = (Math.random() - 0.5) * 18;
+      envObjects.push({ id: `border-l-${by}`, x: borderInset + jx, y: by + jy, type: 'stone_wall', size: 30, leafTimer: 0 });
+      envObjects.push({ id: `border-r-${by}`, x: WORLD_SIZE - borderInset + jx, y: by + jy, type: 'stone_wall', size: 30, leafTimer: 0 });
+    }
+
+    // Boulder clusters (22) — rendered as rock EnvObjects
+    {
+      let attempts = 0;
+      const rockClusters: EnvObject[] = [];
+      while (rockClusters.length < 22 && attempts < 500) {
+        attempts++;
+        const x = 400 + Math.random() * (WORLD_SIZE - 800);
+        const y = 400 + Math.random() * (WORLD_SIZE - 800);
+        const tooClose = rockClusters.some(r => Math.hypot(r.x - x, r.y - y) < 350);
+        if (tooClose) continue;
+        rockClusters.push({
+          id: `rock-${rockClusters.length}`,
+          x, y,
+          type: 'rock',
+          size: 35 + Math.random() * 30,
+          leafTimer: 0,
+        });
+      }
+      rockClusters.forEach(r => envObjects.push(r));
+    }
+
+    // Sandbag barriers (28)
+    {
+      let attempts = 0;
+      while (sandbagBarriers.length < 28 && attempts < 800) {
+        attempts++;
+        const x = 300 + Math.random() * (WORLD_SIZE - 600);
+        const y = 300 + Math.random() * (WORLD_SIZE - 600);
+        const tooClose = sandbagBarriers.some(sb => Math.hypot(sb.x - x, sb.y - y) < 200);
+        if (tooClose) continue;
+        sandbagBarriers.push({
+          id: `sandbag-${sandbagBarriers.length}`,
+          x, y,
+          angle: Math.random() * Math.PI * 2,
+          count: 4 + Math.floor(Math.random() * 3), // 4-6
+        });
+      }
+    }
+
+    // Explosive barrels (28 scattered)
+    {
+      let attempts = 0;
+      while (barrels.length < 28 && attempts < 600) {
+        attempts++;
+        const x = 200 + Math.random() * (WORLD_SIZE - 400);
+        const y = 200 + Math.random() * (WORLD_SIZE - 400);
+        const tooClose = barrels.some(b => Math.hypot(b.x - x, b.y - y) < 300);
+        if (tooClose) continue;
+        barrels.push({ id: `barrel-${barrels.length}`, x, y, health: 3, maxHealth: 3 });
+      }
+    }
+
+    const { buildings, buildingCrates } = generateBuildings();
+    const campfires = generateCampfires(buildings);
+    buildingCrates.forEach(c => crates.push(c));
+
+    // ── Detect door openings on each building's exterior walls ───────────────
+    const doorZones: Array<{ x: number; y: number }> = [];
+    const WALL_THICK = 20;   // tolerance to identify wall rects on an exterior edge
+    const MIN_DOOR_GAP = 30; // minimum gap width to count as a door
+    buildings.forEach(bld => {
+      const hw = bld.outerW / 2;
+      const hh = bld.outerH / 2;
+      const edges: Array<{
+        axis: 'h' | 'v';
+        edgePos: number;
+        span: number;
+        toWorld: (t: number) => { x: number; y: number };
+      }> = [
+        { axis: 'h', edgePos: -hh, span: hw, toWorld: t => ({ x: bld.x + t, y: bld.y - hh }) },
+        { axis: 'h', edgePos:  hh, span: hw, toWorld: t => ({ x: bld.x + t, y: bld.y + hh }) },
+        { axis: 'v', edgePos: -hw, span: hh, toWorld: t => ({ x: bld.x - hw, y: bld.y + t }) },
+        { axis: 'v', edgePos:  hw, span: hh, toWorld: t => ({ x: bld.x + hw, y: bld.y + t }) },
+      ];
+      edges.forEach(edge => {
+        const segs: Array<[number, number]> = [];
+        bld.wallRects.forEach(wr => {
+          if (edge.axis === 'h') {
+            if (Math.abs(wr.y - edge.edgePos) < WALL_THICK) segs.push([wr.x - wr.w / 2, wr.x + wr.w / 2]);
+          } else {
+            if (Math.abs(wr.x - edge.edgePos) < WALL_THICK) segs.push([wr.y - wr.h / 2, wr.y + wr.h / 2]);
+          }
+        });
+        if (segs.length === 0) return;
+        segs.sort((a, b) => a[0] - b[0]);
+        let prevEnd = -edge.span;
+        for (const [s, e] of segs) {
+          if (s > prevEnd + MIN_DOOR_GAP) doorZones.push(edge.toWorld((prevEnd + s) / 2));
+          prevEnd = Math.max(prevEnd, e);
+        }
+        if (prevEnd < edge.span - MIN_DOOR_GAP) doorZones.push(edge.toWorld((prevEnd + edge.span) / 2));
+      });
+    });
+    const DOOR_CLEAR = 110;
+    const nearDoor = (x: number, y: number) => doorZones.some(dz => Math.hypot(dz.x - x, dz.y - y) < DOOR_CLEAR);
+
+    // Remove env objects (trees/bushes/walls) inside building footprints or blocking doors
+    const clearEnv = envObjects.filter(obj =>
+      !buildings.some(bld =>
+        Math.abs(obj.x - bld.x) < bld.outerW / 2 + 20 &&
+        Math.abs(obj.y - bld.y) < bld.outerH / 2 + 20
+      ) && !nearDoor(obj.x, obj.y)
+    );
+    envObjects.length = 0;
+    clearEnv.forEach(o => envObjects.push(o));
+
+    // Remove scattered barrels inside/on building walls or blocking doors
+    const clearBarrels = barrels.filter(b =>
+      !buildings.some(bld => {
+        if (Math.abs(b.x - bld.x) < bld.outerW / 2 + 25 &&
+            Math.abs(b.y - bld.y) < bld.outerH / 2 + 25) return true;
+        return bld.wallRects.some(wr => {
+          const wx = bld.x + wr.x, wy = bld.y + wr.y;
+          return Math.abs(b.x - wx) < wr.w / 2 + 22 && Math.abs(b.y - wy) < wr.h / 2 + 22;
+        });
+      }) && !nearDoor(b.x, b.y)
+    );
+    barrels.length = 0;
+    clearBarrels.forEach(b => barrels.push(b));
+
+    // Remove sandbag barriers blocking doors
+    const clearSandbags = sandbagBarriers.filter(sb => !nearDoor(sb.x, sb.y));
+    sandbagBarriers.length = 0;
+    clearSandbags.forEach(sb => sandbagBarriers.push(sb));
+
+    // Remove scattered crates blocking doors
+    const clearCrates = crates.filter(c => !nearDoor(c.x, c.y));
+    crates.length = 0;
+    clearCrates.forEach(c => crates.push(c));
+
+    // 1-3 extra barrels outside each building (guaranteed clear of walls and doors)
+    buildings.forEach((bld, bi) => {
+      const nearCount = 1 + Math.floor(Math.random() * 3);
+      const minDist = Math.max(bld.outerW, bld.outerH) / 2 + 40;
+      let placed = 0, attempts = 0;
+      while (placed < nearCount && attempts < 40) {
+        attempts++;
+        const ang = Math.random() * Math.PI * 2;
+        const dist = minDist + Math.random() * 80;
+        const bx = bld.x + Math.cos(ang) * dist;
+        const by = bld.y + Math.sin(ang) * dist;
+        if (nearDoor(bx, by)) continue;
+        barrels.push({ id: `barrel-bld-${bi}-${placed}`, x: bx, y: by, health: 3, maxHealth: 3 });
+        placed++;
+      }
+    });
+
+    return { crates, envObjects, items: [] as Item[], waterBodies, buildings, campfires, barrels, sandbagBarriers };
   };
 
   const initHost = () => {
@@ -76,13 +463,16 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
     });
 
     peer.on('connection', (conn: any) => {
-      connRef.current = conn;
-      setPlayerCount(2);
-      setStatus('Opponent joined!');
-      
+      if (connsRef.current.length >= 9) { conn.close(); return; }
+      connsRef.current.push(conn);
+      const count = connsRef.current.length + 1;
+      setPlayerCount(count);
+      setStatus(`${connsRef.current.length} player${connsRef.current.length > 1 ? 's' : ''} connected`);
+
       conn.on('close', () => {
-        setPlayerCount(1);
-        setStatus('Opponent left.');
+        connsRef.current = connsRef.current.filter(c => c !== conn);
+        setPlayerCount(connsRef.current.length + 1);
+        setStatus(connsRef.current.length === 0 ? 'Waiting for players...' : `${connsRef.current.length} player${connsRef.current.length > 1 ? 's' : ''} connected`);
       });
     });
 
@@ -102,18 +492,16 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
 
     peer.on('open', () => {
       const conn = peer.connect(`verdant-strike-${code}`);
-      connRef.current = conn;
-
+      clientConnRef.current = conn;
       conn.on('open', () => {
         setMenuState('waiting');
-        setPlayerCount(2);
         setStatus('Connected to host!');
       });
 
       conn.on('data', (data: any) => {
         if (data.type === 'START_GAME') {
           isLaunchingRef.current = true;
-          onLaunch(code, false, peer, conn, data.worldData);
+          onLaunch(code, false, peer, conn, data.worldData, data.playerId);
         }
       });
 
@@ -130,11 +518,14 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
   };
 
   const startGame = () => {
-    if (isHost && connRef.current) {
+    if (isHost && connsRef.current.length > 0) {
       const worldData = generateWorldData();
-      connRef.current.send({ type: 'START_GAME', worldData });
+      const playerIds = ['p0', ...connsRef.current.map((_, i) => `p${i + 1}`)];
+      connsRef.current.forEach((c, i) => {
+        if (c?.open) c.send({ type: 'START_GAME', worldData: { ...worldData, playerIds }, playerId: `p${i + 1}` });
+      });
       isLaunchingRef.current = true;
-      onLaunch(lobbyCode, true, peerRef.current, connRef.current, worldData);
+      onLaunch(lobbyCode, true, peerRef.current, connsRef.current, { ...worldData, playerIds }, 'p0');
     }
   };
 
@@ -145,111 +536,383 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
     };
   }, [menuState === 'create']);
 
-  // Background scene drawing
+  // Animated battle scene background
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    const draw = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      const centerX = canvas.width / 2;
-      const centerY = canvas.height / 2;
-      ctx.fillStyle = '#064e3b';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = 'rgba(255,255,255,0.03)';
-      ctx.lineWidth = 1;
-      for (let x = 0; x <= canvas.width; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, canvas.height); ctx.stroke(); }
-      for (let y = 0; y <= canvas.height; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(canvas.width, y); ctx.stroke(); }
-      const drawTree = (x: number, y: number) => {
-        ctx.fillStyle = '#451a03'; ctx.beginPath(); ctx.arc(x, y, 20, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = '#166534'; ctx.beginPath(); ctx.arc(x, y, 40, 0, Math.PI * 2); ctx.fill();
-      };
-      drawTree(centerX - 200, centerY - 150);
-      drawTree(centerX + 250, centerY + 180);
-      ctx.save(); ctx.translate(centerX, centerY); ctx.fillStyle = '#ffe0bd'; ctx.strokeStyle = '#d4b38e'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(12, -15, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.beginPath(); ctx.arc(12, 15, 7, 0, Math.PI*2); ctx.fill(); ctx.stroke();
-      ctx.beginPath(); ctx.arc(0, 0, 20, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#000';
-      ctx.beginPath(); ctx.arc(10, -6, 2.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(10, 6, 2.5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+
+    let W = window.innerWidth, H = window.innerHeight;
+    canvas.width = W; canvas.height = H;
+
+    const onResize = () => {
+      W = window.innerWidth; H = window.innerHeight;
+      canvas.width = W; canvas.height = H;
     };
-    draw();
-    window.addEventListener('resize', draw);
-    return () => window.removeEventListener('resize', draw);
+    window.addEventListener('resize', onResize);
+
+    const S = Math.min(W, H) / 700;
+
+    // Static map elements (fractional positions)
+    const trees: { fx: number; fy: number; r: number; seed: number }[] = [
+      { fx: 0.08, fy: 0.12, r: 48 * S, seed: 0 }, { fx: 0.92, fy: 0.10, r: 52 * S, seed: 1 },
+      { fx: 0.18, fy: 0.78, r: 44 * S, seed: 2 }, { fx: 0.80, fy: 0.82, r: 50 * S, seed: 3 },
+      { fx: 0.50, fy: 0.08, r: 40 * S, seed: 4 }, { fx: 0.12, fy: 0.50, r: 46 * S, seed: 5 },
+      { fx: 0.88, fy: 0.55, r: 48 * S, seed: 6 }, { fx: 0.38, fy: 0.88, r: 42 * S, seed: 7 },
+      { fx: 0.62, fy: 0.25, r: 45 * S, seed: 8 }, { fx: 0.32, fy: 0.38, r: 40 * S, seed: 9 },
+      { fx: 0.72, fy: 0.60, r: 43 * S, seed: 10 }, { fx: 0.55, fy: 0.70, r: 38 * S, seed: 11 },
+      { fx: 0.20, fy: 0.22, r: 41 * S, seed: 12 }, { fx: 0.78, fy: 0.20, r: 44 * S, seed: 13 },
+    ];
+
+    const sceneCrates: { fx: number; fy: number; isGold: boolean }[] = [
+      { fx: 0.30, fy: 0.30, isGold: false }, { fx: 0.70, fy: 0.28, isGold: false },
+      { fx: 0.50, fy: 0.50, isGold: true  }, { fx: 0.28, fy: 0.68, isGold: false },
+      { fx: 0.72, fy: 0.70, isGold: false }, { fx: 0.18, fy: 0.48, isGold: false },
+      { fx: 0.82, fy: 0.45, isGold: false }, { fx: 0.48, fy: 0.20, isGold: false },
+    ];
+
+    // Demo players — team 0 (left side) vs team 1 (right side)
+    const makePl = (fx: number, fy: number, team: number) => ({
+      x: fx * W, y: fy * H,
+      rot: team === 0 ? 0.3 : Math.PI - 0.3,
+      targetX: Math.random() * W, targetY: Math.random() * H,
+      team,
+      shootTimer: Math.floor(Math.random() * 80),
+      color: team === 0 ? '#ffe0bd' : '#c8a87a',
+    });
+
+    const demoPlayers = [
+      makePl(0.18, 0.32, 0), makePl(0.12, 0.58, 0), makePl(0.25, 0.48, 0),
+      makePl(0.82, 0.30, 1), makePl(0.88, 0.62, 1), makePl(0.75, 0.46, 1),
+    ];
+
+    type Bullet = { x: number; y: number; vx: number; vy: number; life: number };
+    type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number };
+
+    let bullets: Bullet[] = [];
+    let particles: Particle[] = [];
+
+    const spawnHit = (x: number, y: number, color: string) => {
+      for (let i = 0; i < 8; i++) {
+        particles.push({
+          x, y,
+          vx: (Math.random() - 0.5) * 6,
+          vy: (Math.random() - 0.5) * 6,
+          life: 25 + Math.random() * 15, maxLife: 40,
+          color, size: 2 + Math.random() * 3,
+        });
+      }
+    };
+
+    const treeGreens = ['#1a3a1a', '#2d4a2d', '#1e4020', '#2a5c2a', '#1f4a1f', '#254d25'];
+    let rafId: number;
+
+    const loop = () => {
+      ctx.clearRect(0, 0, W, H);
+
+      // Floor tiles
+      const floorPalette = ['#064e3b', '#053d30', '#074f3c', '#055840', '#054538'];
+      const tileSize = 180;
+      for (let tx = 0; tx < W; tx += tileSize) {
+        for (let ty = 0; ty < H; ty += tileSize) {
+          const idx = Math.floor(((tx / tileSize) * 3 + (ty / tileSize) * 7) % floorPalette.length);
+          ctx.fillStyle = floorPalette[idx];
+          ctx.fillRect(tx, ty, tileSize, tileSize);
+        }
+      }
+      // Subtle grid
+      ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
+      for (let x = 0; x <= W; x += tileSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+      for (let y = 0; y <= H; y += tileSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+
+      // Crates
+      const crateS = 22 * S;
+      sceneCrates.forEach(c => {
+        const cx = c.fx * W, cy = c.fy * H;
+        ctx.save(); ctx.translate(cx, cy);
+        ctx.fillStyle = c.isGold ? '#92400e' : '#78350f';
+        ctx.strokeStyle = c.isGold ? '#eab308' : '#451a03'; ctx.lineWidth = 2;
+        ctx.fillRect(-crateS, -crateS, crateS * 2, crateS * 2);
+        ctx.strokeRect(-crateS, -crateS, crateS * 2, crateS * 2);
+        if (c.isGold) {
+          ctx.fillStyle = '#eab308'; ctx.font = `bold ${Math.round(13 * S)}px sans-serif`;
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', 0, 0);
+        } else {
+          ctx.beginPath(); ctx.moveTo(-crateS, -crateS); ctx.lineTo(crateS, crateS); ctx.stroke();
+        }
+        ctx.restore();
+      });
+
+      // Tree trunks
+      trees.forEach(t => {
+        ctx.fillStyle = '#2c1810';
+        ctx.beginPath(); ctx.arc(t.fx * W, t.fy * H + 4 * S, 9 * S, 0, Math.PI * 2); ctx.fill();
+      });
+
+      // Update and draw demo players
+      demoPlayers.forEach(pl => {
+        const dx = pl.targetX - pl.x, dy = pl.targetY - pl.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > 5) {
+          pl.x += (dx / dist) * 1.6;
+          pl.y += (dy / dist) * 1.6;
+          // Keep inside screen
+          pl.x = Math.max(40, Math.min(W - 40, pl.x));
+          pl.y = Math.max(40, Math.min(H - 40, pl.y));
+        } else {
+          pl.targetX = W * (0.05 + Math.random() * 0.9);
+          pl.targetY = H * (0.05 + Math.random() * 0.9);
+        }
+
+        // Aim at nearest enemy
+        const enemy = demoPlayers.find(p2 => p2.team !== pl.team);
+        if (enemy) {
+          const targetAngle = Math.atan2(enemy.y - pl.y, enemy.x - pl.x);
+          // Smooth rotation
+          let diff = targetAngle - pl.rot;
+          while (diff > Math.PI) diff -= Math.PI * 2;
+          while (diff < -Math.PI) diff += Math.PI * 2;
+          pl.rot += diff * 0.06;
+        }
+
+        // Shoot
+        pl.shootTimer--;
+        if (pl.shootTimer <= 0 && enemy) {
+          pl.shootTimer = 65 + Math.floor(Math.random() * 70);
+          const angle = pl.rot + (Math.random() - 0.5) * 0.28;
+          const spd = 10;
+          bullets.push({
+            x: pl.x + Math.cos(angle) * 22 * S,
+            y: pl.y + Math.sin(angle) * 22 * S,
+            vx: Math.cos(angle) * spd,
+            vy: Math.sin(angle) * spd,
+            life: 55 + Math.floor(Math.random() * 20),
+          });
+        }
+
+        // Draw player
+        ctx.save(); ctx.translate(pl.x, pl.y); ctx.rotate(pl.rot);
+        ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1.5;
+        // Gun
+        ctx.fillStyle = '#2a2a2a'; ctx.fillRect(10 * S, 2 * S, 22 * S, 7 * S);
+        // Body
+        ctx.fillStyle = pl.color;
+        ctx.beginPath(); ctx.arc(0, 0, 16 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        // Head
+        ctx.fillStyle = pl.color;
+        ctx.beginPath(); ctx.arc(10 * S, -13 * S, 6 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        // Eyes
+        ctx.fillStyle = '#000';
+        ctx.beginPath(); ctx.arc(9 * S, -5 * S, 2 * S, 0, Math.PI * 2); ctx.fill();
+        ctx.beginPath(); ctx.arc(9 * S, 4 * S, 2 * S, 0, Math.PI * 2); ctx.fill();
+        // Hand
+        ctx.fillStyle = pl.color; ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.arc(14 * S, 6 * S, 5 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.restore();
+      });
+
+      // Update and draw bullets
+      bullets = bullets.filter(b => {
+        b.x += b.vx; b.y += b.vy; b.life--;
+        if (b.life <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H) return false;
+
+        let hit = false;
+        demoPlayers.forEach(pl => {
+          if (Math.sqrt((pl.x - b.x) ** 2 + (pl.y - b.y) ** 2) < 16 * S) {
+            spawnHit(b.x, b.y, '#ef4444');
+            hit = true;
+          }
+        });
+        if (hit) return false;
+
+        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx));
+        const g = ctx.createLinearGradient(-11, 0, 4, 0);
+        g.addColorStop(0, 'rgba(255,180,0,0)');
+        g.addColorStop(0.6, 'rgba(255,220,80,0.75)');
+        g.addColorStop(1, 'rgba(255,255,200,1)');
+        ctx.fillStyle = g;
+        ctx.beginPath(); ctx.ellipse(0, 0, 7, 2, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.9)';
+        ctx.beginPath(); ctx.ellipse(2, 0, 2.5, 1, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+        return true;
+      });
+
+      // Update and draw particles
+      particles = particles.filter(pt => {
+        pt.x += pt.vx; pt.y += pt.vy;
+        pt.vx *= 0.9; pt.vy *= 0.9; pt.life--;
+        ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
+        ctx.fillStyle = pt.color;
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
+        ctx.globalAlpha = 1;
+        return pt.life > 0;
+      });
+
+      // Tree foliage — drawn over players for depth
+      trees.forEach(t => {
+        const tx = t.fx * W, ty = t.fy * H;
+        ctx.save(); ctx.translate(tx, ty);
+        const g0 = treeGreens[t.seed % treeGreens.length];
+        const g1 = treeGreens[(t.seed + 2) % treeGreens.length];
+        const g2 = treeGreens[(t.seed + 4) % treeGreens.length];
+        const r = t.r;
+        ctx.fillStyle = g1; ctx.beginPath(); ctx.arc(-r * 0.28, r * 0.1, r * 0.58, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(r * 0.28, r * 0.1, r * 0.58, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = g0; ctx.beginPath(); ctx.arc(0, -r * 0.12, r * 0.72, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      });
+
+      // Dark vignette around edges
+      const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.min(W, H) * 0.78);
+      vig.addColorStop(0, 'rgba(0,0,0,0)');
+      vig.addColorStop(1, 'rgba(0,0,0,0.72)');
+      ctx.fillStyle = vig;
+      ctx.fillRect(0, 0, W, H);
+
+      rafId = requestAnimationFrame(loop);
+    };
+
+    loop();
+    return () => {
+      cancelAnimationFrame(rafId);
+      window.removeEventListener('resize', onResize);
+    };
   }, []);
 
   return (
     <div className="relative w-full h-full flex items-center justify-center font-sans overflow-hidden">
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
-      
-      <div className="absolute top-12 left-12 flex flex-col pointer-events-auto">
-        <h1 className="text-white text-7xl font-black italic tracking-tighter drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">VERDANT STRIKE</h1>
-        <div className="h-1 w-48 bg-white/20 mt-2"></div>
-        
-        <div className="mt-12 flex flex-col gap-4 items-start">
+
+      {/* Centered UI */}
+      <div className="relative z-10 flex flex-col items-center gap-3 pointer-events-auto select-none">
+
+        {/* Title */}
+        <div className="flex flex-col items-center mb-1">
+          <h1 className="text-white text-8xl font-black italic tracking-tighter drop-shadow-[0_0_60px_rgba(255,255,255,0.22)] select-none leading-none">
+            VERDANT STRIKE
+          </h1>
+          <span className="text-white/25 text-xs font-black tracking-[0.55em] uppercase mt-2">
+            Battle Royale
+          </span>
+        </div>
+
+        {/* Menu panel */}
+        <div className="bg-black/55 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_32px_80px_rgba(0,0,0,0.6)] w-[440px] overflow-hidden">
+
           {menuState === 'main' && (
-            <>
-              <button onClick={() => setMenuState('create')} className="px-10 py-4 bg-white text-black font-black text-xl rounded-xl hover:bg-blue-400 hover:text-white transition-all shadow-2xl">CREATE GAME</button>
-              <button onClick={() => setMenuState('join')} className="px-10 py-4 bg-black/40 text-white font-black text-xl rounded-xl border border-white/10 hover:bg-white hover:text-black transition-all shadow-2xl backdrop-blur-md">JOIN GAME</button>
-              <button className="px-10 py-4 bg-black/40 text-white/40 font-black text-xl rounded-xl border border-white/10 opacity-50 cursor-not-allowed">SETTINGS</button>
-            </>
+            <div className="p-3 flex flex-col gap-2">
+              <button
+                onClick={() => setMenuState('create')}
+                className="w-full px-8 py-4 bg-white text-black font-black text-lg rounded-2xl hover:bg-green-400 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-lg"
+              >
+                CREATE GAME
+              </button>
+              <button
+                onClick={() => setMenuState('join')}
+                className="w-full px-8 py-4 bg-white/8 text-white font-black text-lg rounded-2xl border border-white/12 hover:bg-white hover:text-black hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
+              >
+                JOIN GAME
+              </button>
+              <button
+                className="w-full px-8 py-4 bg-white/4 text-white/25 font-black text-lg rounded-2xl border border-white/8 cursor-not-allowed"
+              >
+                SETTINGS
+              </button>
+            </div>
           )}
 
           {menuState === 'create' && (
-            <div className="flex flex-col gap-6 animate-in slide-in-from-left duration-300">
-              <div className="bg-black/60 backdrop-blur-xl p-8 rounded-3xl border border-white/10 shadow-2xl">
-                <span className="text-white/40 text-xs font-black tracking-widest uppercase">Lobby Code</span>
-                <div className="text-white text-6xl font-black tracking-widest mt-1 font-mono">{lobbyCode}</div>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className={`w-3 h-3 ${playerCount >= 2 ? 'bg-green-500' : 'bg-yellow-500'} rounded-full animate-pulse`}></div>
-                  <span className="text-white/80 font-bold">Players: {playerCount} / 2</span>
-                  <div className="text-white/40 text-sm ml-auto">{status}</div>
+            <div className="p-7 flex flex-col gap-5 animate-in slide-in-from-bottom duration-300">
+              <div>
+                <span className="text-white/40 text-[10px] font-black tracking-[0.4em] uppercase">Your Lobby Code</span>
+                <div className="text-white text-6xl font-black tracking-widest mt-1 font-mono drop-shadow-[0_0_20px_rgba(255,255,255,0.15)]">
+                  {lobbyCode}
                 </div>
               </div>
-              
+              <div className="flex items-center gap-3 bg-white/6 rounded-xl px-4 py-3 border border-white/8">
+                <div className={`w-2.5 h-2.5 ${playerCount >= 2 ? 'bg-green-400' : 'bg-yellow-400'} rounded-full animate-pulse flex-shrink-0`}></div>
+                <span className="text-white/70 font-bold text-sm">{playerCount} / 10 Players</span>
+                <span className="text-white/30 text-xs ml-auto">{status}</span>
+              </div>
               {playerCount >= 2 ? (
-                <button onClick={startGame} className="px-12 py-5 bg-green-500 text-white font-black text-2xl rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-[0_0_40px_rgba(34,197,94,0.3)]">START GAME</button>
+                <button
+                  onClick={startGame}
+                  className="w-full px-8 py-4 bg-green-500 text-white font-black text-xl rounded-2xl hover:scale-[1.03] hover:bg-green-400 active:scale-[0.97] transition-all shadow-[0_0_30px_rgba(34,197,94,0.35)]"
+                >
+                  START GAME ({playerCount} Players)
+                </button>
               ) : (
-                <div className="bg-white/10 px-8 py-4 rounded-xl text-white/40 font-black italic">WAITING FOR PLAYER...</div>
+                <div className="bg-white/5 px-6 py-4 rounded-2xl text-white/35 font-black italic text-center text-sm border border-white/8">
+                  WAITING FOR PLAYERS... (min 2)
+                </div>
               )}
-              
-              <button onClick={() => setMenuState('main')} className="text-white/40 font-bold hover:text-white transition-colors uppercase tracking-widest text-sm">Leave Lobby</button>
+              <button
+                onClick={() => setMenuState('main')}
+                className="text-white/35 font-bold hover:text-white/80 transition-colors text-sm tracking-[0.3em] uppercase text-center"
+              >
+                ← Leave Lobby
+              </button>
             </div>
           )}
 
           {menuState === 'join' && (
-            <div className="flex flex-col gap-6 animate-in slide-in-from-left duration-300">
-              <div className="bg-black/60 backdrop-blur-xl p-8 rounded-3xl border border-white/10 shadow-2xl">
-                <span className="text-white/40 text-xs font-black tracking-widest uppercase">Enter Code</span>
-                <input type="text" maxLength={4} value={enteredCode} onChange={(e) => setEnteredCode(e.target.value.toUpperCase())} placeholder="----" className="bg-transparent text-white text-6xl font-black tracking-widest mt-2 font-mono outline-none border-b-4 border-white/10 focus:border-blue-500 transition-colors w-48" />
-                <div className="text-white/40 text-xs mt-2 uppercase">{status}</div>
+            <div className="p-7 flex flex-col gap-5 animate-in slide-in-from-bottom duration-300">
+              <div>
+                <span className="text-white/40 text-[10px] font-black tracking-[0.4em] uppercase">Enter Lobby Code</span>
+                <input
+                  type="text"
+                  maxLength={4}
+                  value={enteredCode}
+                  onChange={(e) => setEnteredCode(e.target.value.toUpperCase())}
+                  placeholder="----"
+                  className="block bg-transparent text-white text-6xl font-black tracking-widest mt-1 font-mono outline-none border-b-4 border-white/20 focus:border-green-400 transition-colors w-full placeholder-white/15"
+                />
+                {status && (
+                  <div className="text-red-400 text-xs mt-2 uppercase font-bold tracking-wider">{status}</div>
+                )}
               </div>
-
-              <div className="flex gap-4">
-                <button onClick={() => enteredCode.length === 4 && initJoin(enteredCode)} className="px-10 py-4 bg-white text-black font-black text-xl rounded-xl hover:bg-blue-400 hover:text-white transition-all disabled:opacity-50" disabled={enteredCode.length < 4}>JOIN</button>
-                <button onClick={() => setMenuState('main')} className="px-10 py-4 bg-black/40 text-white font-black text-xl rounded-xl border border-white/10 hover:bg-white hover:text-black transition-all">BACK</button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => enteredCode.length === 4 && initJoin(enteredCode)}
+                  disabled={enteredCode.length < 4}
+                  className="flex-1 px-8 py-4 bg-white text-black font-black text-lg rounded-2xl hover:bg-green-400 hover:text-white transition-all disabled:opacity-30 disabled:cursor-not-allowed hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  JOIN
+                </button>
+                <button
+                  onClick={() => { setStatus(''); setMenuState('main'); }}
+                  className="px-8 py-4 bg-white/8 text-white font-black text-lg rounded-2xl border border-white/12 hover:bg-white hover:text-black transition-all hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  BACK
+                </button>
               </div>
             </div>
           )}
 
           {menuState === 'waiting' && (
-            <div className="flex flex-col gap-6 animate-in slide-in-from-left duration-300">
-              <div className="bg-black/60 backdrop-blur-xl p-8 rounded-3xl border border-white/10 shadow-2xl">
-                <span className="text-white/40 text-xs font-black tracking-widest uppercase">Lobby Code</span>
+            <div className="p-7 flex flex-col gap-5 animate-in slide-in-from-bottom duration-300">
+              <div>
+                <span className="text-white/40 text-[10px] font-black tracking-[0.4em] uppercase">Connected to Lobby</span>
                 <div className="text-white text-6xl font-black tracking-widest mt-1 font-mono">{enteredCode}</div>
-                <div className="mt-6 flex items-center gap-3">
-                  <div className="w-3 h-3 bg-green-500 rounded-full animate-pulse"></div>
-                  <span className="text-white/80 font-bold">Connected</span>
-                </div>
               </div>
-              <div className="bg-white/10 px-8 py-4 rounded-xl text-white/60 font-black italic flex items-center gap-3">
-                <div className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div>
-                WAITING FOR HOST...
+              <div className="flex items-center gap-3 bg-green-500/10 border border-green-500/20 rounded-xl px-4 py-3">
+                <div className="w-4 h-4 border-2 border-green-400/50 border-t-green-400 rounded-full animate-spin flex-shrink-0"></div>
+                <span className="text-green-400 font-black text-sm tracking-wider">WAITING FOR HOST TO START...</span>
               </div>
-              <button onClick={() => { cleanupPeer(); setMenuState('main'); }} className="text-white/40 font-bold hover:text-white transition-colors uppercase tracking-widest text-sm text-left">Leave Lobby</button>
+              <button
+                onClick={() => { cleanupPeer(); setMenuState('main'); setPlayerCount(1); setStatus(''); }}
+                className="text-white/35 font-bold hover:text-white/80 transition-colors text-sm tracking-[0.3em] uppercase text-center"
+              >
+                ← Leave Lobby
+              </button>
             </div>
           )}
         </div>
+
+        {/* Version watermark */}
+        <span className="text-white/12 text-[10px] font-bold tracking-widest uppercase mt-1">v0.1 alpha</span>
       </div>
     </div>
   );
