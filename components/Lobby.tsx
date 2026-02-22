@@ -104,9 +104,11 @@ declare const Peer: any;
 
 interface LobbyProps {
   onLaunch: (code: string, isHost: boolean, peer: any, conn: any, worldData?: any, playerId?: string) => void;
+  username: string;
+  onLogout: () => void;
 }
 
-const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
+const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
   const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting'>('main');
   const [lobbyCode, setLobbyCode] = useState('');
   const [enteredCode, setEnteredCode] = useState('');
@@ -119,6 +121,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
   const clientConnRef = useRef<any>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLaunchingRef = useRef(false);
+  const clientUsernamesRef = useRef<Record<string, string>>({});
 
   const cleanupPeer = () => {
     if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
@@ -469,6 +472,15 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
       setPlayerCount(count);
       setStatus(`${connsRef.current.length} player${connsRef.current.length > 1 ? 's' : ''} connected`);
 
+      conn.on('data', (data: any) => {
+        if (data.type === 'PLAYER_INFO') {
+          const connIndex = connsRef.current.indexOf(conn);
+          if (connIndex >= 0) {
+            clientUsernamesRef.current[`p${connIndex + 1}`] = data.username;
+          }
+        }
+      });
+
       conn.on('close', () => {
         connsRef.current = connsRef.current.filter(c => c !== conn);
         setPlayerCount(connsRef.current.length + 1);
@@ -496,6 +508,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
       conn.on('open', () => {
         setMenuState('waiting');
         setStatus('Connected to host!');
+        conn.send({ type: 'PLAYER_INFO', username });
       });
 
       conn.on('data', (data: any) => {
@@ -521,11 +534,12 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
     if (isHost && connsRef.current.length > 0) {
       const worldData = generateWorldData();
       const playerIds = ['p0', ...connsRef.current.map((_, i) => `p${i + 1}`)];
+      const usernames: Record<string, string> = { p0: username, ...clientUsernamesRef.current };
       connsRef.current.forEach((c, i) => {
-        if (c?.open) c.send({ type: 'START_GAME', worldData: { ...worldData, playerIds }, playerId: `p${i + 1}` });
+        if (c?.open) c.send({ type: 'START_GAME', worldData: { ...worldData, playerIds, usernames }, playerId: `p${i + 1}` });
       });
       isLaunchingRef.current = true;
-      onLaunch(lobbyCode, true, peerRef.current, connsRef.current, { ...worldData, playerIds }, 'p0');
+      onLaunch(lobbyCode, true, peerRef.current, connsRef.current, { ...worldData, playerIds, usernames }, 'p0');
     }
   };
 
@@ -911,8 +925,18 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch }) => {
           )}
         </div>
 
-        {/* Version watermark */}
-        <span className="text-white/12 text-[10px] font-bold tracking-widest uppercase mt-1">v0.1 alpha</span>
+        {/* Version + user info */}
+        <div className="flex items-center gap-4 mt-1">
+          <span className="text-white/12 text-[10px] font-bold tracking-widest uppercase">v0.1 alpha</span>
+          <span className="text-white/25 text-[10px]">|</span>
+          <span className="text-white/35 text-[10px] font-bold tracking-widest uppercase">{username}</span>
+          <button
+            onClick={onLogout}
+            className="text-white/20 text-[10px] font-bold tracking-widest uppercase hover:text-white/60 transition-colors"
+          >
+            LOGOUT
+          </button>
+        </div>
       </div>
     </div>
   );

@@ -1,5 +1,7 @@
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import type { Session } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
 import { Player, Item, Bullet, GameState, WORLD_SIZE, Crate, EnvObject, WaterBody, Particle, ItemType, Rarity, RARITY_COLORS, StormState, NetworkMessage, Building, Campfire, Grenade, SmokeCloud, Barrel, SandbagBarrier } from '../types';
 import HUD from './HUD';
 import pistolLogoUrl from '../Assets/pistollogo.png';
@@ -76,12 +78,13 @@ interface GameWorldProps {
   isHost: boolean;
   peer: any;
   conn: any; // host: any[] of client connections; client: single connection to host
-  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[] };
+  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string> };
   onExit: () => void;
   playerId?: string;
+  session?: Session | null;
 }
 
-const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, initialWorldData, onExit, playerId }) => {
+const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, initialWorldData, onExit, playerId, session }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const requestRef = useRef<number | null>(null);
   const pistolImgRef = useRef<HTMLImageElement | null>(null);
@@ -109,6 +112,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const localId = playerId ?? (isHost ? 'p0' : 'p1');
   const allPlayerIds: string[] = initialWorldData?.playerIds ?? ['p0', 'p1'];
   const remoteIds = allPlayerIds.filter(id => id !== localId);
+  const usernames: Record<string, string> = initialWorldData?.usernames ?? {};
 
   // Preload weapon images for canvas rendering
   useEffect(() => {
@@ -172,6 +176,24 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const [nearbyItem, setNearbyItem] = useState<Item | null>(null);
   const [killFeed, setKillFeed] = useState<Array<{ id: string; killer: string; victim: string }>>([]);
   const [throwModeActive, setThrowModeActive] = useState(false);
+
+  // Save match stats to Supabase when game ends
+  useEffect(() => {
+    if (uiState.isGameOver && session) {
+      const p = uiState.players[localId];
+      if (p) {
+        supabase.from('match_stats').insert({
+          user_id: session.user.id,
+          kills: p.kills,
+          damage_dealt: p.damageDealt ?? 0,
+          damage_taken: p.damageTaken ?? 0,
+          shots_fired: p.shotsFired ?? 0,
+          shots_hit: p.shotsHit ?? 0,
+          placement: uiState.placement,
+        });
+      }
+    }
+  }, [uiState.isGameOver]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Broadcast to all connections (host: all clients; client: single host conn)
   const safeSend = (data: any) => {
@@ -1915,9 +1937,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         <div className="absolute top-36 right-6 flex flex-col items-end gap-1 pointer-events-none z-40">
           {killFeed.map(entry => (
             <div key={entry.id} className="bg-black/65 backdrop-blur-sm text-xs px-3 py-1 rounded-full border border-white/10 flex items-center gap-2 shadow-lg">
-              <span className="font-black text-blue-300">P{parseInt(entry.killer.replace('p', '')) + 1}</span>
+              <span className="font-black text-blue-300">{usernames[entry.killer] ?? `P${parseInt(entry.killer.replace('p', '')) + 1}`}</span>
               <span className="text-white/60">💀</span>
-              <span className="font-black text-red-300">P{parseInt(entry.victim.replace('p', '')) + 1}</span>
+              <span className="font-black text-red-300">{usernames[entry.victim] ?? `P${parseInt(entry.victim.replace('p', '')) + 1}`}</span>
             </div>
           ))}
         </div>
