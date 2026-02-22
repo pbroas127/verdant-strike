@@ -4,7 +4,12 @@ input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
 input:-webkit-autofill:active {
   -webkit-text-fill-color: #ffffff !important;
-  -webkit-box-shadow: 0 0 0px 1000px rgba(0, 0, 0, 0.6) inset !important;
+  -webkit-box-shadow: 0 0 0px 1000px rgba(10, 30, 20, 0.95) inset !important;
   transition: background-color 5000s ease-in-out 0s;
-  caret-color: #ffffff;
+  caret-color: #ffffff !important;
+}
+
+/* Prevent browser from resetting input colors */
+input::placeholder {
+  color: rgba(255, 255, 255, 0.3);
 }

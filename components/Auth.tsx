@@ -115,7 +115,8 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
                     onChange={e => setEmail(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && submit()}
                     placeholder="you@example.com"
-                    className="w-full bg-white/6 border border-white/12 text-white font-bold rounded-xl px-4 py-3 outline-none focus:border-green-400/60 focus:bg-white/8 transition-all placeholder-white/20"
+                    className="w-full rounded-xl px-4 py-3 outline-none transition-all font-bold"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)', caretColor: '#ffffff' }}
                   />
                 </div>
 
@@ -128,7 +129,8 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
                     onChange={e => setPassword(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && submit()}
                     placeholder="••••••••"
-                    className="w-full bg-white/6 border border-white/12 text-white font-bold rounded-xl px-4 py-3 outline-none focus:border-green-400/60 focus:bg-white/8 transition-all placeholder-white/20"
+                    className="w-full rounded-xl px-4 py-3 outline-none transition-all font-bold"
+                    style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)', caretColor: '#ffffff' }}
                   />
                 </div>
 
@@ -143,7 +145,8 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
                       onKeyDown={e => e.key === 'Enter' && submit()}
                       placeholder="YourGamertag"
                       maxLength={20}
-                      className="w-full bg-white/6 border border-white/12 text-white font-bold rounded-xl px-4 py-3 outline-none focus:border-green-400/60 focus:bg-white/8 transition-all placeholder-white/20"
+                      className="w-full rounded-xl px-4 py-3 outline-none transition-all font-bold"
+                      style={{ backgroundColor: 'rgba(255,255,255,0.08)', color: '#ffffff', border: '1px solid rgba(255,255,255,0.15)', caretColor: '#ffffff' }}
                     />
                     <p className="text-white/25 text-[10px] mt-1 ml-1">Letters, numbers, underscores only</p>
                   </div>
