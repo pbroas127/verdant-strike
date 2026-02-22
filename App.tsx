@@ -68,8 +68,12 @@ const App: React.FC = () => {
     );
   }
 
-  if (!session || !profile) {
-    return <Auth onAuth={(p) => setProfile(p)} />;
+  if (!profile) {
+    return <Auth onAuth={(p) => {
+      setProfile(p);
+      // Also grab the active session so the game has it for stats saving
+      supabase.auth.getSession().then(({ data: { session: s } }) => setSession(s));
+    }} />;
   }
 
   return (

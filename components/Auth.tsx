@@ -154,7 +154,7 @@ const Auth: React.FC<AuthProps> = ({ onAuth }) => {
 
                 {/* Error */}
                 {error && (
-                  <div className="bg-red-500/15 border border-red-500/30 rounded-xl px-4 py-3 text-red-400 text-sm font-bold">
+                  <div style={{ backgroundColor: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '12px', padding: '12px 16px', color: '#f87171', fontSize: '14px', fontWeight: 700 }}>
                     {error}
                   </div>
                 )}
