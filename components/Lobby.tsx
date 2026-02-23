@@ -445,8 +445,11 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     sandbagBarriers.length = 0;
     clearSandbags.forEach(sb => sandbagBarriers.push(sb));
 
-    // Remove crates overlapping buildings or blocking doors
-    const clearCrates = crates.filter(c => !overlapsBuilding(c.x, c.y, 50) && !nearDoor(c.x, c.y));
+    // Remove only outdoor crates overlapping buildings or blocking doors (keep interior building crates)
+    const clearCrates = crates.filter(c =>
+      c.id.startsWith('bld-crate-') ||
+      (!overlapsBuilding(c.x, c.y, 50) && !nearDoor(c.x, c.y))
+    );
     crates.length = 0;
     clearCrates.forEach(c => crates.push(c));
 
