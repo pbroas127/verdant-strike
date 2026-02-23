@@ -21,9 +21,10 @@ interface HUDProps {
   onSpectate?: () => void;
   killedByName?: string;
   winnerName?: string;
+  worldSize?: number;
 }
 
-const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop, onSpectate, killedByName, winnerName }) => {
+const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop, onSpectate, killedByName, winnerName, worldSize: ws = WORLD_SIZE }) => {
   const [dragFrom, setDragFrom] = React.useState<number | null>(null);
   const currentItem = player.inventory[player.selectedSlot];
   const ammoCount = currentItem?.ammo ?? 0;
@@ -158,10 +159,10 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
             <div
               className="absolute rounded-full"
               style={{
-                left: `${(storm.x / WORLD_SIZE) * 100}%`,
-                top: `${(storm.y / WORLD_SIZE) * 100}%`,
-                width: `${(storm.radius / WORLD_SIZE) * 200}%`,
-                height: `${(storm.radius / WORLD_SIZE) * 200}%`,
+                left: `${(storm.x / ws) * 100}%`,
+                top: `${(storm.y / ws) * 100}%`,
+                width: `${(storm.radius / ws) * 200}%`,
+                height: `${(storm.radius / ws) * 200}%`,
                 transform: 'translate(-50%, -50%)',
                 border: '2px solid rgba(239,68,68,0.6)',
               }}
@@ -172,10 +173,10 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
             <div
               className="absolute rounded-full border-dashed"
               style={{
-                left: `${(storm.x / WORLD_SIZE) * 100}%`,
-                top: `${(storm.y / WORLD_SIZE) * 100}%`,
-                width: `${(storm.nextTargetRadius / WORLD_SIZE) * 200}%`,
-                height: `${(storm.nextTargetRadius / WORLD_SIZE) * 200}%`,
+                left: `${(storm.x / ws) * 100}%`,
+                top: `${(storm.y / ws) * 100}%`,
+                width: `${(storm.nextTargetRadius / ws) * 200}%`,
+                height: `${(storm.nextTargetRadius / ws) * 200}%`,
                 transform: 'translate(-50%, -50%)',
                 border: '2px dashed rgba(255,255,255,0.55)',
                 backgroundColor: 'rgba(255,255,255,0.02)',
@@ -192,8 +193,8 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
           <div
             className="absolute w-3 h-3 bg-white rounded-full border border-white shadow-[0_0_8px_rgba(255,255,255,1)] z-10"
             style={{
-              left: `${(player.x / WORLD_SIZE) * 100}%`,
-              top: `${(player.y / WORLD_SIZE) * 100}%`,
+              left: `${(player.x / ws) * 100}%`,
+              top: `${(player.y / ws) * 100}%`,
               transform: 'translate(-50%, -50%)'
             }}
           />

@@ -78,7 +78,7 @@ interface GameWorldProps {
   isHost: boolean;
   peer: any;
   conn: any; // host: any[] of client connections; client: single connection to host
-  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string> };
+  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string>, worldSize?: number };
   onExit: () => void;
   playerId?: string;
   session?: Session | null;
@@ -114,6 +114,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const remoteIds = allPlayerIds.filter(id => id !== localId);
   const usernames: Record<string, string> = initialWorldData?.usernames ?? {};
   const skinColors: Record<string, string> = initialWorldData?.skinColors ?? {};
+  const worldSize = initialWorldData?.worldSize ?? WORLD_SIZE;
 
   // Spectate system
   const [spectatingId, setSpectatingId] = useState<string | null>(null);
@@ -143,11 +144,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     players: Object.fromEntries(
       allPlayerIds.map((pid, idx) => {
         const angle = (idx / allPlayerIds.length) * Math.PI * 2 - Math.PI / 2;
-        const r = WORLD_SIZE * 0.35;
+        const r = worldSize * 0.35;
         return [pid, {
           id: pid,
-          x: Math.round(WORLD_SIZE / 2 + Math.cos(angle) * r),
-          y: Math.round(WORLD_SIZE / 2 + Math.sin(angle) * r),
+          x: Math.round(worldSize / 2 + Math.cos(angle) * r),
+          y: Math.round(worldSize / 2 + Math.sin(angle) * r),
           rotation: 0, health: 100, maxHealth: 100,
           armorHealth: 0, maxArmorHealth: 0, currentArmor: null, kills: 0,
           inventory: [null, null, null, null, null], selectedSlot: 0, isPunching: false, punchCooldown: 0,
@@ -169,11 +170,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     stormCircle: 0,
     particles: [],
     storm: {
-      x: WORLD_SIZE / 2, y: WORLD_SIZE / 2,
-      radius: WORLD_SIZE * 0.75,
-      targetRadius: Math.round(WORLD_SIZE * 0.75 * 0.6),
-      nextTargetRadius: Math.round(WORLD_SIZE * 0.75 * 0.6),
-      startRadius: WORLD_SIZE * 0.75,
+      x: worldSize / 2, y: worldSize / 2,
+      radius: worldSize * 0.75,
+      targetRadius: Math.round(worldSize * 0.75 * 0.6),
+      nextTargetRadius: Math.round(worldSize * 0.75 * 0.6),
+      startRadius: worldSize * 0.75,
       phase: 'initial_wait', timer: 7200, phaseTime: 7200
     },
     remainingPlayers: allPlayerIds.length,
@@ -367,6 +368,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
               const wRoll = Math.random();
               if (wRoll > 0.55) { type = 'assault_rifle'; }
               else if (wRoll > 0.2) { type = 'shotgun'; }
+            } else if (rarity === 'uncommon' && Math.random() > 0.6) {
+              type = 'assault_rifle'; // uncommon AR: lower damage (27), shorter ammo (30)
             }
           }
 
@@ -830,7 +833,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     s.particles.forEach(pt => { pt.x += pt.vx; pt.y += pt.vy; pt.vx *= 0.95; pt.vy *= 0.95; pt.life--; });
     s.particles = s.particles.filter(pt => pt.life > 0);
     // Non-host clients stop game logic when dead; host keeps running to maintain authoritative state for others
-    if (s.isGameOver && !isHost) { setUiState({ ...s }); return; }
+    // Keep running if spectating so bullets/particles continue animating
+    if (s.isGameOver && !isHost && spectatingIdRef.current === null) { setUiState({ ...s }); return; }
 
     const storm = s.storm;
 
@@ -887,8 +891,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (Math.sqrt((barrel.x - nx) ** 2 + (barrel.y - p.y) ** 2) < br) cx = false;
           if (Math.sqrt((barrel.x - p.x) ** 2 + (barrel.y - ny) ** 2) < br) cy = false;
         });
-        if (cx) p.x = Math.max(20, Math.min(WORLD_SIZE - 20, nx));
-        if (cy) p.y = Math.max(20, Math.min(WORLD_SIZE - 20, ny));
+        if (cx) p.x = Math.max(20, Math.min(worldSize - 20, nx));
+        if (cy) p.y = Math.max(20, Math.min(worldSize - 20, ny));
       }
 
       p.rotation = Math.atan2(mousePos.current.y - window.innerHeight / 2, mousePos.current.x - window.innerWidth / 2);
@@ -924,9 +928,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           const nextTarget = Math.round(storm.targetRadius * 0.6);
           storm.nextTargetRadius = nextTarget;
           const drift = storm.targetRadius * 0.35;
-          storm.x = Math.max(storm.targetRadius + 60, Math.min(WORLD_SIZE - storm.targetRadius - 60,
+          storm.x = Math.max(storm.targetRadius + 60, Math.min(worldSize - storm.targetRadius - 60,
             storm.x + (Math.random() - 0.5) * drift * 2));
-          storm.y = Math.max(storm.targetRadius + 60, Math.min(WORLD_SIZE - storm.targetRadius - 60,
+          storm.y = Math.max(storm.targetRadius + 60, Math.min(worldSize - storm.targetRadius - 60,
             storm.y + (Math.random() - 0.5) * drift * 2));
           storm.phase = 'waiting'; storm.timer = 3600; storm.phaseTime = 3600;
           // Supply drop every circle
@@ -1174,7 +1178,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
 
       b.x = nx; b.y = ny;
-      return !hit && nx > 0 && nx < WORLD_SIZE && ny > 0 && ny < WORLD_SIZE;
+      return !hit && nx > 0 && nx < worldSize && ny > 0 && ny < worldSize;
     });
 
     // Grenade physics
@@ -1297,8 +1301,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     s.items.forEach(i => {
       i.x += (i.vx || 0); i.y += (i.vy || 0);
       i.vx = (i.vx || 0) * 0.85; i.vy = (i.vy || 0) * 0.85;
-      i.x = Math.max(50, Math.min(WORLD_SIZE - 50, i.x));
-      i.y = Math.max(50, Math.min(WORLD_SIZE - 50, i.y));
+      i.x = Math.max(50, Math.min(worldSize - 50, i.x));
+      i.y = Math.max(50, Math.min(worldSize - 50, i.y));
     });
 
     setUiState({ ...s });
@@ -1405,7 +1409,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       ctx.lineWidth = 1.5;
       for (let wx = Math.floor(camX / 80) * 80; wx < camX + cv.width + 80; wx += 80) {
         for (let wy = Math.floor(camY / 80) * 80; wy < camY + cv.height + 80; wy += 80) {
-          if (wx > -10 && wx < WORLD_SIZE + 10 && wy > -10 && wy < WORLD_SIZE + 10) continue;
+          if (wx > -10 && wx < worldSize + 10 && wy > -10 && wy < worldSize + 10) continue;
           ctx.beginPath();
           ctx.arc(wx + waveOff1, wy + waveOff2, 12, 0.15, Math.PI - 0.15);
           ctx.stroke();
@@ -1415,8 +1419,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       // Floor — varied dark green tiles
       const floorPalette = ['#064e3b', '#053d30', '#074f3c', '#055840', '#054538'];
       const tileSize = 200;
-      for (let tx = 0; tx < WORLD_SIZE; tx += tileSize) {
-        for (let ty = 0; ty < WORLD_SIZE; ty += tileSize) {
+      for (let tx = 0; tx < worldSize; tx += tileSize) {
+        for (let ty = 0; ty < worldSize; ty += tileSize) {
           if (tx + tileSize < camX || tx > camX + cv.width || ty + tileSize < camY || ty > camY + cv.height) continue;
           const idx = Math.floor(((tx / tileSize) * 3 + (ty / tileSize) * 7) % floorPalette.length);
           ctx.fillStyle = floorPalette[idx];
@@ -1425,12 +1429,12 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
       // Subtle grid
       ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
-      for (let x = 0; x <= WORLD_SIZE; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, WORLD_SIZE); ctx.stroke(); }
-      for (let y = 0; y <= WORLD_SIZE; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(WORLD_SIZE, y); ctx.stroke(); }
+      for (let x = 0; x <= worldSize; x += 100) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, worldSize); ctx.stroke(); }
+      for (let y = 0; y <= worldSize; y += 100) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(worldSize, y); ctx.stroke(); }
 
       // Map edge shadow
       ctx.save(); ctx.shadowColor = 'rgba(0,0,0,0.6)'; ctx.shadowBlur = 40;
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 24; ctx.strokeRect(0, 0, WORLD_SIZE, WORLD_SIZE);
+      ctx.strokeStyle = 'rgba(0,0,0,0.4)'; ctx.lineWidth = 24; ctx.strokeRect(0, 0, worldSize, worldSize);
       ctx.shadowBlur = 0; ctx.restore();
 
       // Building floors
@@ -1858,8 +1862,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         const ib = bld.interiorBounds;
         const intCX = bld.x + ib.x, intCY = bld.y + ib.y;
         const intHW = ib.w / 2, intHH = ib.h / 2;
-        const isInside = p.x >= intCX - intHW && p.x <= intCX + intHW &&
-                         p.y >= intCY - intHH && p.y <= intCY + intHH;
+        const isInside = camCenter.x >= intCX - intHW && camCenter.x <= intCX + intHW &&
+                         camCenter.y >= intCY - intHH && camCenter.y <= intCY + intHH;
         const cur = fogAlphaRef.current[bld.id] ?? 1.0;
         const target = isInside ? 0 : 1.0;
         const next = cur + (target - cur) * 0.1;
@@ -2048,6 +2052,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         placement={uiState.placement}
         onExit={onExit}
         supplyDrops={uiState.crates.filter(c => c.isSupplyDrop).map(c => ({ id: c.id, x: c.x, y: c.y }))}
+        worldSize={worldSize}
         isThrowModeActive={throwModeActive}
         onInventorySwap={handleInventorySwap}
         onInventoryDrop={handleInventoryDrop}

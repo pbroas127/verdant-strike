@@ -138,7 +138,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     if (clientConnRef.current) { clientConnRef.current.close(); clientConnRef.current = null; }
   };
 
-  const generateBuildings = (): { buildings: Building[]; buildingCrates: Crate[] } => {
+  const generateBuildings = (WS: number = WORLD_SIZE): { buildings: Building[]; buildingCrates: Crate[] } => {
     const buildings: Building[] = [];
     const buildingCrates: Crate[] = [];
     const TARGET = 28;
@@ -151,8 +151,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
     while (buildings.length < TARGET && attempts < 2000) {
       attempts++;
-      const x = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
-      const y = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
+      const x = EDGE + Math.random() * (WS - 2 * EDGE);
+      const y = EDGE + Math.random() * (WS - 2 * EDGE);
 
       const tooClose = buildings.some(b => Math.hypot(b.x - x, b.y - y) < MIN_DIST);
       if (tooClose) continue;
@@ -185,7 +185,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         if (Math.random() < 0.75) {
           const rawX = x + sp.x * SCALE;
           const rawY = y + sp.y * SCALE;
-          const isGold = Math.random() < 0.35;
+          const isGold = Math.random() < 0.10;
           buildingCrates.push({
             id: `bld-crate-${buildings.length}-${i}`,
             x: Math.max(intCX - clampHW, Math.min(intCX + clampHW, rawX)),
@@ -200,7 +200,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     return { buildings, buildingCrates };
   };
 
-  const generateCampfires = (buildings: Building[]): Campfire[] => {
+  const generateCampfires = (buildings: Building[], WS: number = WORLD_SIZE): Campfire[] => {
     const campfires: Campfire[] = [];
     const TARGET = 7;
     const MIN_DIST_CF = 600;
@@ -209,8 +209,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
     while (campfires.length < TARGET && attempts < 300) {
       attempts++;
-      const x = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
-      const y = EDGE + Math.random() * (WORLD_SIZE - 2 * EDGE);
+      const x = EDGE + Math.random() * (WS - 2 * EDGE);
+      const y = EDGE + Math.random() * (WS - 2 * EDGE);
 
       const nearBuilding = buildings.some(b =>
         Math.hypot(b.x - x, b.y - y) < Math.max(b.outerW, b.outerH) / 2 + 180
@@ -223,7 +223,10 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     return campfires;
   };
 
-  const generateWorldData = () => {
+  const generateWorldData = (playerCount = 10) => {
+    // Dynamic world size: ~500px per player, min 5000, max 9000
+    // eslint-disable-next-line @typescript-eslint/no-shadow
+    const WORLD_SIZE = Math.max(5000, Math.min(9000, Math.round(4000 + playerCount * 500)));
     const crates: Crate[] = [];
     const envObjects: EnvObject[] = [];
     const waterBodies: WaterBody[] = [];
@@ -232,11 +235,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
     const goldPositions = [
       { x: WORLD_SIZE * 0.50, y: WORLD_SIZE * 0.50 },
-      { x: WORLD_SIZE * 0.25, y: WORLD_SIZE * 0.25 },
-      { x: WORLD_SIZE * 0.75, y: WORLD_SIZE * 0.25 },
       { x: WORLD_SIZE * 0.25, y: WORLD_SIZE * 0.75 },
-      { x: WORLD_SIZE * 0.75, y: WORLD_SIZE * 0.75 },
-      { x: WORLD_SIZE * 0.50, y: WORLD_SIZE * 0.25 },
+      { x: WORLD_SIZE * 0.75, y: WORLD_SIZE * 0.25 },
     ];
     goldPositions.forEach((pos, i) => {
       crates.push({
@@ -361,8 +361,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       }
     }
 
-    const { buildings, buildingCrates } = generateBuildings();
-    const campfires = generateCampfires(buildings);
+    const { buildings, buildingCrates } = generateBuildings(WORLD_SIZE);
+    const campfires = generateCampfires(buildings, WORLD_SIZE);
     buildingCrates.forEach(c => crates.push(c));
 
     // ── Detect door openings on each building's exterior walls ───────────────
@@ -456,7 +456,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       }
     });
 
-    return { crates, envObjects, items: [] as Item[], waterBodies, buildings, campfires, barrels, sandbagBarriers };
+    return { crates, envObjects, items: [] as Item[], waterBodies, buildings, campfires, barrels, sandbagBarriers, worldSize: WORLD_SIZE };
   };
 
   const initHost = () => {
@@ -541,8 +541,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
   const startGame = () => {
     if (isHost && connsRef.current.length > 0) {
-      const worldData = generateWorldData();
       const playerIds = ['p0', ...connsRef.current.map((_, i) => `p${i + 1}`)];
+      const worldData = generateWorldData(playerIds.length);
       const usernames: Record<string, string> = { p0: username, ...clientUsernamesRef.current };
       const skinColors: Record<string, string> = { p0: localStorage.getItem('skinColor') || '#ffe0bd', ...clientSkinColorsRef.current };
       connsRef.current.forEach((c, i) => {

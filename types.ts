@@ -190,7 +190,7 @@ export interface GameState {
 }
 
 export type NetworkMessage =
-  | { type: 'START_GAME'; worldData: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string> } }
+  | { type: 'START_GAME'; worldData: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string>, worldSize?: number } }
   | { type: 'STATE_UPDATE'; state: Partial<GameState>; particleEvents?: { x: number; y: number; color: string; count: number }[] }
   | { type: 'PLAYER_SYNC'; player: Player }
   | { type: 'BULLET_SPAWN'; bullet: Bullet }
