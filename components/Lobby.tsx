@@ -596,6 +596,17 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     return { crates, envObjects, items: [] as Item[], waterBodies, buildings, campfires, barrels, sandbagBarriers, worldSize: WORLD_SIZE, spawnPoints };
   };
 
+  // Central PeerJS connection options so host and join use the same server
+  const PEER_CONFIG: any = {
+    // TODO: change these when you host your own PeerJS server.
+    // For now this still uses the public cloud server but with explicit ICE config.
+    config: {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+      ],
+    },
+  };
+
   const initHost = () => {
     cleanupPeer();
     const code = Math.random().toString(36).substring(2, 6).toUpperCase();
@@ -603,7 +614,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     setIsHost(true);
     setStatus('Connecting to signaling server...');
 
-    const peer = new Peer(`verdant-strike-${code}`);
+    const peer = new Peer(`verdant-strike-${code}`, PEER_CONFIG);
     peerRef.current = peer;
 
     peer.on('open', () => {
@@ -645,7 +656,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     setIsHost(false);
     setStatus('Joining...');
 
-    const peer = new Peer();
+    const peer = new Peer(PEER_CONFIG);
     peerRef.current = peer;
 
     peer.on('open', () => {
