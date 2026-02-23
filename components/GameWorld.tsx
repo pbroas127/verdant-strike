@@ -1345,11 +1345,18 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (nearbyItemRef.current) {
           pickupItem(nearbyItemRef.current);
         } else {
+          useMed();
+        }
+      }
+      if (e.key === 'f') {
+        if (throwModeRef.current) {
+          throwModeRef.current = false; setThrowModeActive(false);
+        } else {
           const _p = stateRef.current.players[localId];
           const _item = _p.inventory[_p.selectedSlot];
           if (_item && (_item.type === 'grenade' || _item.type === 'smoke_grenade')) {
             throwModeRef.current = true; setThrowModeActive(true);
-          } else { useMed(); }
+          }
         }
       }
       if (e.key === 'escape') { throwModeRef.current = false; setThrowModeActive(false); }
@@ -1686,7 +1693,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.save(); ctx.translate(i.x, i.y);
         ctx.shadowBlur = 22; ctx.shadowColor = RARITY_COLORS[i.rarity];
         if (i.type === 'pistol' || i.type === 'assault_rifle' || i.type === 'shotgun' || i.type === 'grenade' || i.type === 'smoke_grenade') {
-          const img = i.type === 'assault_rifle' ? arImgRef.current
+          const img = i.type === 'pistol' ? pistolImgRef.current
+            : i.type === 'assault_rifle' ? arImgRef.current
             : i.type === 'shotgun' ? shotgunLogoImgRef.current
             : i.type === 'smoke_grenade' ? smokeLogoImgRef.current
             : grenadeLogoImgRef.current;
@@ -1820,18 +1828,18 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.restore();
       });
 
-      // Smoke Clouds - 5 seconds visible, 5 seconds fade
+      // Smoke Clouds - 5 seconds visible, 5 seconds fade (100% opacity when fully visible)
       s.smokeClouds.forEach(cloud => {
         if (cloud.radius <= 0) return;
         const fadeStartLife = 300;
-        const alpha = (cloud.life > fadeStartLife ? 1 : cloud.life / fadeStartLife) * 0.7;
+        const alpha = (cloud.life > fadeStartLife ? 1 : cloud.life / fadeStartLife);
         const offsets = [{ x: -cloud.radius * 0.15, y: 0 }, { x: cloud.radius * 0.1, y: -cloud.radius * 0.1 }, { x: 0, y: 0 }];
         offsets.forEach((off, i) => {
           const r = cloud.radius * (0.7 + i * 0.15);
-          ctx.fillStyle = `rgba(160,160,160,${(alpha * 0.38).toFixed(3)})`;
+          ctx.fillStyle = `rgba(160,160,160,${(alpha * 0.5).toFixed(3)})`;
           ctx.beginPath(); ctx.arc(cloud.x + off.x, cloud.y + off.y, r, 0, Math.PI * 2); ctx.fill();
         });
-        ctx.strokeStyle = `rgba(80,80,80,${(alpha * 0.2).toFixed(3)})`; ctx.lineWidth = cloud.radius * 0.4;
+        ctx.strokeStyle = `rgba(80,80,80,${(alpha * 0.3).toFixed(3)})`; ctx.lineWidth = cloud.radius * 0.4;
         ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius * 0.5, 0, Math.PI * 2); ctx.stroke();
       });
 

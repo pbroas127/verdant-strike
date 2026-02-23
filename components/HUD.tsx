@@ -189,7 +189,7 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
           )}
           {/* Supply drops — pulsing blue dots */}
           {supplyDrops.map(sd => (
-            <div key={sd.id} className="absolute z-10" style={{ left:`${(sd.x/WORLD_SIZE)*100}%`, top:`${(sd.y/WORLD_SIZE)*100}%`, transform:'translate(-50%,-50%)' }}>
+            <div key={sd.id} className="absolute z-10" style={{ left:`${(sd.x/ws)*100}%`, top:`${(sd.y/ws)*100}%`, transform:'translate(-50%,-50%)' }}>
               <div className="absolute w-3 h-3 bg-blue-400 rounded-full opacity-60 animate-ping" />
               <div className="relative w-2 h-2 bg-blue-400 rounded-full border border-yellow-400 shadow-[0_0_6px_rgba(59,130,246,1)]" />
             </div>
