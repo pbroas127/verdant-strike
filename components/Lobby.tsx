@@ -607,6 +607,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         { urls: 'stun:stun.l.google.com:19302' },
       ],
     },
+    key: 'verdant-strike',
   };
 
   const initHost = () => {
