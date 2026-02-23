@@ -100,6 +100,12 @@ const BUILDING_TEMPLATES: BTemplate[] = [
   },
 ];
 
+const SKIN_TONES = [
+  '#fddccc', '#f5c5a3', '#e8a87c', '#d4845a',
+  '#c06840', '#a05228', '#8d5524', '#5c2e0e',
+  '#ffb3c6', '#b5e48c', '#90e0ef', '#c9b1ff',
+];
+
 declare const Peer: any;
 
 interface LobbyProps {
@@ -109,7 +115,7 @@ interface LobbyProps {
 }
 
 const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
-  const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting'>('main');
+  const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting' | 'customize'>('main');
   const [lobbyCode, setLobbyCode] = useState('');
   const [enteredCode, setEnteredCode] = useState('');
   const [playerCount, setPlayerCount] = useState(1);
@@ -122,6 +128,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const isLaunchingRef = useRef(false);
   const clientUsernamesRef = useRef<Record<string, string>>({});
+  const clientSkinColorsRef = useRef<Record<string, string>>({});
+  const [selectedSkin, setSelectedSkin] = useState<string>(() => localStorage.getItem('skinColor') || '#ffe0bd');
 
   const cleanupPeer = () => {
     if (peerRef.current) { peerRef.current.destroy(); peerRef.current = null; }
@@ -252,19 +260,19 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     const wallTypes = ['stone_wall', 'wood_wall', 'metal_wall', 'brick_wall', 'mossy_stone_wall'];
     const longWallTypes = ['long_stone_wall', 'long_wood_wall', 'long_brick_wall', 'long_mossy_wall'];
 
-    for (let i = 0; i < 180; i++) {
+    for (let i = 0; i < 320; i++) {
       const typeRoll = Math.random();
       let type: any = 'tree';
       let objW: number | undefined, objH: number | undefined;
 
-      if (typeRoll < 0.08) {
+      if (typeRoll < 0.05) {
         type = longWallTypes[Math.floor(Math.random() * longWallTypes.length)];
         const isHoriz = Math.random() > 0.5;
         objW = isHoriz ? 120 : 30;
         objH = isHoriz ? 30 : 120;
-      } else if (typeRoll < 0.22) {
+      } else if (typeRoll < 0.15) {
         type = wallTypes[Math.floor(Math.random() * wallTypes.length)];
-      } else if (typeRoll < 0.42) {
+      } else if (typeRoll < 0.35) {
         type = 'bush';
       }
 
@@ -280,7 +288,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       const obj: EnvObject = {
         id: `env-${i}`,
         x, y, type,
-        size: type.includes('wall') ? 30 : 38 + Math.random() * 34,
+        size: type.includes('wall') ? 30 : type === 'bush' ? 75 + Math.random() * 45 : 90 + Math.random() * 60,
         leafTimer: 300
       };
       if (objW !== undefined) obj.w = objW;
@@ -305,7 +313,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     {
       let attempts = 0;
       const rockClusters: EnvObject[] = [];
-      while (rockClusters.length < 22 && attempts < 500) {
+      while (rockClusters.length < 35 && attempts < 800) {
         attempts++;
         const x = 400 + Math.random() * (WORLD_SIZE - 800);
         const y = 400 + Math.random() * (WORLD_SIZE - 800);
@@ -343,7 +351,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     // Explosive barrels (28 scattered)
     {
       let attempts = 0;
-      while (barrels.length < 28 && attempts < 600) {
+      while (barrels.length < 16 && attempts < 400) {
         attempts++;
         const x = 200 + Math.random() * (WORLD_SIZE - 400);
         const y = 200 + Math.random() * (WORLD_SIZE - 400);
@@ -477,6 +485,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
           const connIndex = connsRef.current.indexOf(conn);
           if (connIndex >= 0) {
             clientUsernamesRef.current[`p${connIndex + 1}`] = data.username;
+            if (data.skinColor) clientSkinColorsRef.current[`p${connIndex + 1}`] = data.skinColor;
           }
         }
       });
@@ -508,7 +517,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       conn.on('open', () => {
         setMenuState('waiting');
         setStatus('Connected to host!');
-        conn.send({ type: 'PLAYER_INFO', username });
+        conn.send({ type: 'PLAYER_INFO', username, skinColor: localStorage.getItem('skinColor') || '#ffe0bd' });
       });
 
       conn.on('data', (data: any) => {
@@ -535,11 +544,12 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       const worldData = generateWorldData();
       const playerIds = ['p0', ...connsRef.current.map((_, i) => `p${i + 1}`)];
       const usernames: Record<string, string> = { p0: username, ...clientUsernamesRef.current };
+      const skinColors: Record<string, string> = { p0: localStorage.getItem('skinColor') || '#ffe0bd', ...clientSkinColorsRef.current };
       connsRef.current.forEach((c, i) => {
-        if (c?.open) c.send({ type: 'START_GAME', worldData: { ...worldData, playerIds, usernames }, playerId: `p${i + 1}` });
+        if (c?.open) c.send({ type: 'START_GAME', worldData: { ...worldData, playerIds, usernames, skinColors }, playerId: `p${i + 1}` });
       });
       isLaunchingRef.current = true;
-      onLaunch(lobbyCode, true, peerRef.current, connsRef.current, { ...worldData, playerIds, usernames }, 'p0');
+      onLaunch(lobbyCode, true, peerRef.current, connsRef.current, { ...worldData, playerIds, usernames, skinColors }, 'p0');
     }
   };
 
@@ -799,6 +809,80 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     <div className="relative w-full h-full flex items-center justify-center font-sans overflow-hidden">
       <canvas ref={canvasRef} className="absolute inset-0 pointer-events-none" />
 
+      {/* Customize Screen */}
+      {menuState === 'customize' && (
+        <div className="absolute inset-0 z-20 flex pointer-events-auto select-none" style={{ backdropFilter: 'blur(8px)' }}>
+          {/* Left sidebar */}
+          <div className="w-72 flex flex-col" style={{ background: 'rgba(0,0,0,0.88)', borderRight: '1px solid rgba(255,255,255,0.08)' }}>
+            {/* Header */}
+            <div className="flex items-center gap-3 px-5 py-5 border-b border-white/8">
+              <button
+                onClick={() => setMenuState('main')}
+                className="text-white/40 hover:text-white font-black text-sm tracking-widest uppercase transition-colors"
+              >← BACK</button>
+              <span className="text-white font-black text-lg tracking-widest uppercase ml-2">CUSTOMIZE</span>
+            </div>
+            {/* Tabs */}
+            <div className="flex border-b border-white/8">
+              <button className="px-6 py-3 font-black text-xs tracking-widest uppercase text-white border-b-2 border-green-400">SKIN</button>
+              <button className="px-6 py-3 font-black text-xs tracking-widest uppercase text-white/20 cursor-not-allowed">HAT</button>
+              <button className="px-6 py-3 font-black text-xs tracking-widest uppercase text-white/20 cursor-not-allowed">MORE</button>
+            </div>
+            {/* Color patches */}
+            <div className="p-5 flex-1">
+              <p className="text-white/30 text-[10px] font-black tracking-widest uppercase mb-4">Choose Skin Tone</p>
+              <div className="grid grid-cols-3 gap-3">
+                {SKIN_TONES.map(color => (
+                  <button
+                    key={color}
+                    onClick={() => setSelectedSkin(color)}
+                    className="h-11 rounded-xl transition-all duration-150 hover:scale-105 active:scale-95"
+                    style={{
+                      backgroundColor: color,
+                      boxShadow: selectedSkin === color ? `0 0 0 3px white, 0 0 16px ${color}` : '0 0 0 1px rgba(255,255,255,0.12)',
+                      transform: selectedSkin === color ? 'scale(1.08)' : 'scale(1)',
+                    }}
+                  />
+                ))}
+              </div>
+            </div>
+            {/* Save button */}
+            <div className="p-5 border-t border-white/8">
+              <button
+                onClick={() => { localStorage.setItem('skinColor', selectedSkin); setMenuState('main'); }}
+                className="w-full py-4 bg-green-500 text-white font-black text-lg rounded-2xl hover:bg-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all shadow-[0_0_24px_rgba(34,197,94,0.3)]"
+              >
+                SAVE &amp; APPLY
+              </button>
+            </div>
+          </div>
+
+          {/* Right - player preview */}
+          <div className="flex-1 flex flex-col items-center justify-center gap-5">
+            {/* Glow backdrop */}
+            <div style={{ position: 'relative', width: 200, height: 200 }}>
+              <div style={{
+                position: 'absolute', inset: 0, borderRadius: '50%',
+                background: selectedSkin, filter: 'blur(50px)', opacity: 0.45, transform: 'scale(1.3)',
+              }} />
+              <svg width="200" height="200" viewBox="-50 -50 100 100" style={{ position: 'relative' }}>
+                {/* Gun */}
+                <rect x="18" y="-4" width="28" height="10" rx="2" fill="#2a2a2a" />
+                {/* Body */}
+                <circle cx="0" cy="0" r="18" fill={selectedSkin} stroke="#333" strokeWidth="2" />
+                {/* Eyes */}
+                <circle cx="10" cy="-6" r="2.5" fill="#000" />
+                <circle cx="10" cy="6" r="2.5" fill="#000" />
+                {/* Hand */}
+                <circle cx="14" cy="6" r="5" fill={selectedSkin} stroke="#2a2a2a" strokeWidth="1.5" />
+              </svg>
+            </div>
+            <p className="text-white font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]">{username}</p>
+            <p className="text-white/30 text-sm font-bold tracking-wider">Pick a color from the sidebar</p>
+          </div>
+        </div>
+      )}
+
       {/* Centered UI */}
       <div className="relative z-10 flex flex-col items-center gap-3 pointer-events-auto select-none">
 
@@ -830,9 +914,10 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
                 JOIN GAME
               </button>
               <button
-                className="w-full px-8 py-4 bg-white/4 text-white/25 font-black text-lg rounded-2xl border border-white/8 cursor-not-allowed"
+                onClick={() => setMenuState('customize')}
+                className="w-full px-8 py-4 bg-white/4 text-white/60 font-black text-lg rounded-2xl border border-white/8 hover:bg-white/10 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
               >
-                SETTINGS
+                CUSTOMIZE
               </button>
             </div>
           )}

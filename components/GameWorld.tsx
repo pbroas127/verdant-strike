@@ -78,7 +78,7 @@ interface GameWorldProps {
   isHost: boolean;
   peer: any;
   conn: any; // host: any[] of client connections; client: single connection to host
-  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string> };
+  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string> };
   onExit: () => void;
   playerId?: string;
   session?: Session | null;
@@ -113,6 +113,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const allPlayerIds: string[] = initialWorldData?.playerIds ?? ['p0', 'p1'];
   const remoteIds = allPlayerIds.filter(id => id !== localId);
   const usernames: Record<string, string> = initialWorldData?.usernames ?? {};
+  const skinColors: Record<string, string> = initialWorldData?.skinColors ?? {};
+
+  // Spectate system
+  const [spectatingId, setSpectatingId] = useState<string | null>(null);
+  const spectatingIdRef = useRef<string | null>(null);
+  const [gameWinner, setGameWinner] = useState<string | null>(null);
+  const gameWinnerRef = useRef<string | null>(null);
+  const killerMapRef = useRef<Record<string, string>>({});
 
   // Preload weapon images for canvas rendering
   useEffect(() => {
@@ -711,7 +719,21 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (msg.state.crates) s.crates = msg.state.crates;
         if (msg.state.items) s.items = msg.state.items;
         if (msg.state.storm) s.storm = msg.state.storm;
-        if (msg.state.remainingPlayers !== undefined) s.remainingPlayers = msg.state.remainingPlayers;
+        if (msg.state.remainingPlayers !== undefined) {
+          s.remainingPlayers = msg.state.remainingPlayers;
+          if (s.remainingPlayers === 1 && !gameWinnerRef.current) {
+            const winner = (Object.values(s.players) as Player[]).find(pl => pl.health > 0);
+            if (winner && winner.id !== localId) {
+              const wName = usernames[winner.id] ?? `P${parseInt(winner.id.replace('p', '')) + 1}`;
+              gameWinnerRef.current = wName;
+              setGameWinner(wName);
+              if (spectatingIdRef.current !== null) {
+                spectatingIdRef.current = null;
+                setSpectatingId(null);
+              }
+            }
+          }
+        }
         if (msg.state.campfires) s.campfires = msg.state.campfires;
         if (msg.state.stormCircle !== undefined) s.stormCircle = msg.state.stormCircle;
         if (msg.state.barrels) s.barrels = msg.state.barrels;
@@ -753,6 +775,19 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (msg.killerId === localId) s.players[localId].kills++;
         // Host immediately marks victim dead so remaining-player count is accurate on the very next frame
         if (isHost && s.players[msg.victimId]) s.players[msg.victimId].health = 0;
+        killerMapRef.current[msg.victimId] = msg.killerId;
+        // Auto-switch spectating if the player we're watching just died
+        if (spectatingIdRef.current === msg.victimId) {
+          const nextId = msg.killerId;
+          const nextPlayer = s.players[nextId];
+          if (nextId !== localId && nextPlayer && nextPlayer.health > 0) {
+            spectatingIdRef.current = nextId;
+            setSpectatingId(nextId);
+          } else {
+            spectatingIdRef.current = null;
+            setSpectatingId(null);
+          }
+        }
         addKillFeedEntry(msg.killerId, msg.victimId);
       }
     };
@@ -835,7 +870,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             if (Math.abs(envObj.x - nx) < hw && Math.abs(envObj.y - p.y) < hh) cx = false;
             if (Math.abs(envObj.x - p.x) < hw && Math.abs(envObj.y - ny) < hh) cy = false;
           } else {
-            const br = ('type' in obj ? (obj.type === 'tree' ? 35 : obj.type === 'rock' ? ((obj as EnvObject).size * 0.6) : obj.type.includes('wall') ? 30 : 45) : 45) + PLAYER_RADIUS;
+            const br = ('type' in obj ? (obj.type === 'tree' ? (obj as EnvObject).size * 0.38 : obj.type === 'rock' ? ((obj as EnvObject).size * 0.6) : obj.type.includes('wall') ? 30 : 45) : 45) + PLAYER_RADIUS;
             if (Math.sqrt((obj.x - nx) ** 2 + (obj.y - p.y) ** 2) < br) cx = false;
             if (Math.sqrt((obj.x - p.x) ** 2 + (obj.y - ny) ** 2) < br) cy = false;
           }
@@ -944,6 +979,16 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           s.isGameOver = true; s.placement = 1;
         } else {
           safeSendTo({ type: 'STATE_UPDATE', state: { isGameOver: true, placement: 1 } }, survivor.id);
+          // Show winner for host if they died earlier
+          if (s.isGameOver && s.placement > 1 && !gameWinnerRef.current) {
+            const wName = usernames[survivor.id] ?? `P${parseInt(survivor.id.replace('p', '')) + 1}`;
+            gameWinnerRef.current = wName;
+            setGameWinner(wName);
+            if (spectatingIdRef.current !== null) {
+              spectatingIdRef.current = null;
+              setSpectatingId(null);
+            }
+          }
         }
       }
 
@@ -1345,7 +1390,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       const shakeX = screenShakeRef.current > 0 ? (Math.random() - 0.5) * screenShakeRef.current : 0;
       const shakeY = screenShakeRef.current > 0 ? (Math.random() - 0.5) * screenShakeRef.current : 0;
       if (screenShakeRef.current > 0) screenShakeRef.current--;
-      const camX = p.x - cv.width / 2 + shakeX, camY = p.y - cv.height / 2 + shakeY;
+      const specTarget = spectatingIdRef.current ? s.players[spectatingIdRef.current] : null;
+      const camCenter = (specTarget && specTarget.health > 0) ? specTarget : p;
+      const camX = camCenter.x - cv.width / 2 + shakeX, camY = camCenter.y - cv.height / 2 + shakeY;
 
       ctx.save(); ctx.translate(-camX, -camY);
 
@@ -1647,13 +1694,16 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (ply.health <= 0) return;
         ctx.save(); ctx.translate(ply.x, ply.y);
 
-        if (ply.id === s.localPlayerId) {
+        if (ply.id === s.localPlayerId && !spectatingIdRef.current) {
           ctx.fillStyle = 'rgba(255,255,255,0.7)'; ctx.font = 'bold 12px sans-serif';
           ctx.textAlign = 'center'; ctx.fillText("YOU", 0, -35);
+        } else if (spectatingIdRef.current === ply.id) {
+          ctx.fillStyle = 'rgba(100,200,255,0.85)'; ctx.font = 'bold 12px sans-serif';
+          ctx.textAlign = 'center'; ctx.fillText("SPECTATING", 0, -35);
         }
 
         ctx.rotate(ply.rotation);
-        const skinColor = ply.id === localId ? '#ffe0bd' : '#ffdaad';
+        const skinColor = skinColors[ply.id] ?? (ply.id === localId ? '#ffe0bd' : '#ffdaad');
         ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
 
         const wpType = ply.inventory[ply.selectedSlot]?.type;
@@ -1924,6 +1974,13 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     };
   }, [update]);
 
+  const localPlayer = uiState.players[localId];
+  const killedByPlayerId = localPlayer?.killedBy;
+  const isKillerAlive = !!(killedByPlayerId && allPlayerIds.includes(killedByPlayerId) && (uiState.players[killedByPlayerId]?.health ?? 0) > 0);
+  const killedByName = isKillerAlive && !gameWinner && spectatingId === null
+    ? (usernames[killedByPlayerId!] ?? `P${parseInt(killedByPlayerId!.replace('p', '')) + 1}`)
+    : undefined;
+
   return (
     <div className="relative w-full h-full overflow-hidden">
       <canvas ref={canvasRef} className="w-full h-full block" />
@@ -1944,18 +2001,64 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           ))}
         </div>
       )}
+
+      {/* Spectating overlay */}
+      {spectatingId !== null && (
+        <div className="absolute inset-x-0 bottom-0 z-50 flex flex-col items-center pb-8 pointer-events-auto select-none">
+          <div className="bg-black/70 backdrop-blur-md rounded-2xl border border-white/10 px-8 py-4 flex items-center gap-6 shadow-2xl">
+            <div className="flex flex-col items-center">
+              <span className="text-white/40 text-[10px] font-black tracking-widest uppercase">Spectating</span>
+              <span className="text-cyan-300 font-black text-xl tracking-wide">
+                {usernames[spectatingId] ?? `P${parseInt(spectatingId.replace('p', '')) + 1}`}
+              </span>
+            </div>
+            <button
+              onClick={() => { spectatingIdRef.current = null; setSpectatingId(null); onExit(); }}
+              className="px-6 py-3 bg-white text-black font-black rounded-xl hover:bg-red-400 hover:text-white transition-all text-sm tracking-widest uppercase"
+            >
+              EXIT TO LOBBY
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Winner found while dead/spectating overlay */}
+      {gameWinner !== null && spectatingId === null && (
+        <div className="absolute inset-0 bg-black/80 backdrop-blur-xl flex flex-col items-center justify-center z-[100] pointer-events-auto">
+          <div className="flex flex-col items-center gap-4">
+            <h1 className="text-white text-8xl font-black tracking-tighter drop-shadow-2xl">GAME OVER</h1>
+            <p className="text-white/60 text-2xl font-bold italic uppercase">You placed <span className="text-red-400">#{uiState.placement}</span></p>
+            <p className="text-yellow-400 text-2xl font-black tracking-wider mt-2">{gameWinner} has won!</p>
+            <button
+              onClick={onExit}
+              className="mt-6 px-12 py-5 bg-white text-black font-black text-xl rounded-full hover:scale-110 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+            >
+              EXIT TO LOBBY
+            </button>
+          </div>
+        </div>
+      )}
+
       <HUD
         player={uiState.players[uiState.localPlayerId]}
         storm={uiState.storm}
         remainingPlayers={uiState.remainingPlayers}
         ammoAlert={uiState.ammoAlert}
-        isGameOver={uiState.isGameOver}
+        isGameOver={uiState.isGameOver && spectatingId === null && gameWinner === null}
         placement={uiState.placement}
         onExit={onExit}
         supplyDrops={uiState.crates.filter(c => c.isSupplyDrop).map(c => ({ id: c.id, x: c.x, y: c.y }))}
         isThrowModeActive={throwModeActive}
         onInventorySwap={handleInventorySwap}
         onInventoryDrop={handleInventoryDrop}
+        onSpectate={killedByName ? () => {
+          if (killedByPlayerId) {
+            spectatingIdRef.current = killedByPlayerId;
+            setSpectatingId(killedByPlayerId);
+          }
+        } : undefined}
+        killedByName={killedByName}
+        winnerName={gameWinner ?? undefined}
       />
     </div>
   );

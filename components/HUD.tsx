@@ -18,9 +18,12 @@ interface HUDProps {
   isThrowModeActive?: boolean;
   onInventorySwap?: (from: number, to: number) => void;
   onInventoryDrop?: (slot: number) => void;
+  onSpectate?: () => void;
+  killedByName?: string;
+  winnerName?: string;
 }
 
-const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop }) => {
+const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop, onSpectate, killedByName, winnerName }) => {
   const [dragFrom, setDragFrom] = React.useState<number | null>(null);
   const currentItem = player.inventory[player.selectedSlot];
   const ammoCount = currentItem?.ammo ?? 0;
@@ -102,6 +105,10 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
               </>
             )}
             
+            {winnerName && (
+              <p className="text-yellow-400 text-xl font-black tracking-wider mb-2">{winnerName} has won!</p>
+            )}
+
             <div className="grid grid-cols-2 gap-3 mb-8 w-80">
               <div className="bg-white/5 rounded-xl px-4 py-3 text-center border border-white/8">
                 <div className="text-white/40 text-[10px] font-black tracking-widest uppercase mb-1">Damage Dealt</div>
@@ -123,12 +130,22 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
               </div>
             </div>
 
-            <button
-              onClick={onExit}
-              className="px-12 py-5 bg-white text-black font-black text-xl rounded-full hover:scale-110 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)]"
-            >
-              EXIT TO LOBBY
-            </button>
+            <div className="flex flex-col items-center gap-3">
+              <button
+                onClick={onExit}
+                className="px-12 py-5 bg-white text-black font-black text-xl rounded-full hover:scale-110 active:scale-95 transition-all shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+              >
+                EXIT TO LOBBY
+              </button>
+              {onSpectate && killedByName && (
+                <button
+                  onClick={onSpectate}
+                  className="px-10 py-4 bg-cyan-500/20 text-cyan-300 font-black text-base rounded-full border border-cyan-400/40 hover:bg-cyan-500/40 hover:scale-105 active:scale-95 transition-all tracking-widest uppercase"
+                >
+                  SPECTATE {killedByName}
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}
