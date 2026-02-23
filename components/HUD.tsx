@@ -5,6 +5,7 @@ import pistolLogoUrl from '../Assets/pistollogo.png';
 import arLogoUrl from '../Assets/ARlogo.png';
 import shotgunLogoUrl from '../Assets/Shotgunlogo.png';
 import grenadeLogoUrl from '../Assets/Grenadelogo.png';
+import smokeLogoUrl from '../Assets/Smokelogo.png';
 
 interface HUDProps {
   player: Player;
@@ -74,8 +75,11 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
     if (item.type === 'shotgun') {
       return <img src={shotgunLogoUrl} className={`${arPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
-    if (item.type === 'grenade' || item.type === 'smoke_grenade') {
+    if (item.type === 'grenade') {
       return <img src={grenadeLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'smoke_grenade') {
+      return <img src={smokeLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     const emojiSize = size === 'sm' ? 'text-2xl' : 'text-5xl';
     const emoji = item.type === 'armor' ? '🛡️'

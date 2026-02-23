@@ -8,6 +8,7 @@ import pistolLogoUrl from '../Assets/pistollogo.png';
 import arLogoUrl from '../Assets/ARlogo.png';
 import shotgunLogoUrl from '../Assets/Shotgunlogo.png';
 import grenadeLogoUrl from '../Assets/Grenadelogo.png';
+import smokeLogoUrl from '../Assets/Smokelogo.png';
 import topDownPistolUrl from '../Assets/TopDownPistol.png';
 import topDownARUrl from '../Assets/TopDownAR.png';
 import topDownShotgunUrl from '../Assets/TopDownShotgun.png';
@@ -67,7 +68,8 @@ const PUNCH_COOLDOWN = 12;
 const BULLET_SPEED = 16;
 const PICKUP_RANGE = 70;
 const SHOOT_COOLDOWN = 400;
-const AR_SHOOT_COOLDOWN = 80;
+const AR_SHOOT_COOLDOWN = 100;
+const AR_AUTO_COOLDOWN = 100;
 const SHOTGUN_COOLDOWN = 700;
 const STORM_DAMAGE = 5;
 const PLAYER_RADIUS = 20;
@@ -91,6 +93,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const arImgRef = useRef<HTMLImageElement | null>(null);
   const shotgunLogoImgRef = useRef<HTMLImageElement | null>(null);
   const grenadeLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const smokeLogoImgRef = useRef<HTMLImageElement | null>(null);
   const topDownPistolImgRef = useRef<HTMLImageElement | null>(null);
   const topDownARImgRef = useRef<HTMLImageElement | null>(null);
   const topDownShotgunImgRef = useRef<HTMLImageElement | null>(null);
@@ -107,6 +110,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const screenShakeRef = useRef(0);
   const lastGrenadeTime = useRef(0);
   const throwModeRef = useRef(false);
+  const mouseDownRef = useRef(false);
 
   // Core immutable IDs — derived from props (stable for component lifetime)
   const localId = playerId ?? (isHost ? 'p0' : 'p1');
@@ -129,6 +133,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     const a = new Image(); a.src = arLogoUrl; arImgRef.current = a;
     const sg = new Image(); sg.src = shotgunLogoUrl; shotgunLogoImgRef.current = sg;
     const gl = new Image(); gl.src = grenadeLogoUrl; grenadeLogoImgRef.current = gl;
+    const sl = new Image(); sl.src = smokeLogoUrl; smokeLogoImgRef.current = sl;
     const tp = new Image(); tp.src = topDownPistolUrl; topDownPistolImgRef.current = tp;
     const ta = new Image(); ta.src = topDownARUrl; topDownARImgRef.current = ta;
     const ts = new Image(); ts.src = topDownShotgunUrl; topDownShotgunImgRef.current = ts;
@@ -354,10 +359,10 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             const rr = Math.random();
             rarity = rr > 0.95 ? 'legendary' : rr > 0.8 ? 'epic' : rr > 0.5 ? 'rare' : rr > 0.2 ? 'uncommon' : 'common';
           } else if (roll > 0.72) {
-            // Grenade or smoke grenade
+            // Grenade or smoke grenade (smoke is rare)
             const gr = Math.random();
-            type = gr > 0.45 ? 'grenade' : 'smoke_grenade';
-            rarity = 'uncommon';
+            type = gr > 0.75 ? 'grenade' : 'smoke_grenade';
+            rarity = type === 'smoke_grenade' ? 'rare' : 'uncommon';
           } else if (roll > 0.3) {
             const mr = Math.random();
             if (mr > 0.96) { type = 'golden_wrap'; rarity = 'legendary'; }
@@ -682,8 +687,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
 
     // Stack meds/throwables of same type up to rarity-based max
     const medTypes = ['band_aid', 'medkit', 'heal_potion', 'heal_shot', 'golden_wrap', 'grenade', 'smoke_grenade'];
-    const getMedMaxCount = (t: string, r: Rarity): number => {
-      if (t === 'grenade' || t === 'smoke_grenade') return 5;
+      const getMedMaxCount = (t: string, r: Rarity): number => {
+      if (t === 'grenade') return 5;
+      if (t === 'smoke_grenade') return 3;
       const m: Record<Rarity, number> = { common: 5, uncommon: 5, rare: 3, epic: 2, legendary: 1 };
       return m[r];
     };
@@ -900,6 +906,17 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
 
       p.rotation = Math.atan2(mousePos.current.y - window.innerHeight / 2, mousePos.current.x - window.innerWidth / 2);
+    }
+
+    // Auto-fire for AR when holding mouse button
+    if (mouseDownRef.current && p.health > 0) {
+      const item = p.inventory[p.selectedSlot];
+      if (item?.type === 'assault_rifle') {
+        const now = Date.now();
+        if (now - lastShootTime.current >= AR_AUTO_COOLDOWN) {
+          shoot();
+        }
+      }
     }
 
     if (p.punchCooldown > 0) p.punchCooldown--; else p.isPunching = false;
@@ -1265,7 +1282,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             screenShakeRef.current = 14;
             safeSend({ type: 'STATE_UPDATE', state: { grenades: s.grenades, barrels: s.barrels }, particleEvents: [{ x: g.x, y: g.y, color: '#ff6600', count: 30 }] });
           } else {
-            s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 200, life: 480 });
+            s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 280, life: 600 });
             safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
           }
         }
@@ -1274,12 +1291,17 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       return true;
     });
 
-    // Smoke cloud physics
+    // Smoke cloud physics - 5 seconds visible, 5 seconds fade out
     s.smokeClouds.forEach(sc => {
       if (sc.radius < sc.maxRadius) sc.radius += (sc.maxRadius - sc.radius) * 0.04;
       sc.life--;
     });
     s.smokeClouds = s.smokeClouds.filter(sc => sc.life > 0);
+
+    // Update network with smoke cloud changes periodically
+    if (isHost && frameCount.current % 30 === 0 && s.smokeClouds.length > 0) {
+      safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
+    }
 
     // Item Proximity
     const dists = s.items.map(i => Math.sqrt((i.x - p.x) ** 2 + (i.y - p.y) ** 2));
@@ -1311,7 +1333,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
 
     setUiState({ ...s });
     frameCount.current++;
-  }, [isHost, handleCrateHit, handleBarrelHit, localId]);
+  }, [isHost, handleCrateHit, handleBarrelHit, localId, shoot]);
 
   useEffect(() => {
     const hkd = (e: KeyboardEvent) => {
@@ -1345,6 +1367,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     const hku = (e: KeyboardEvent) => keys.current[e.key.toLowerCase()] = false;
     const hmm = (e: MouseEvent) => mousePos.current = { x: e.clientX, y: e.clientY };
     const hmd = (e: MouseEvent) => {
+      if (e.button === 0) mouseDownRef.current = true;
       if (!stateRef.current.isGameOver) {
         if (throwModeRef.current) {
           if (e.button === 0) executeThrowTowardMouse();
@@ -1356,13 +1379,16 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (wpType === 'pistol' || wpType === 'assault_rifle' || wpType === 'shotgun') shoot(); else punch();
       }
     };
+    const hmu = (e: MouseEvent) => { if (e.button === 0) mouseDownRef.current = false; };
     const hrmc = (e: MouseEvent) => { if (throwModeRef.current) e.preventDefault(); };
     window.addEventListener('keydown', hkd); window.addEventListener('keyup', hku);
     window.addEventListener('mousemove', hmm); window.addEventListener('mousedown', hmd);
+    window.addEventListener('mouseup', hmu);
     window.addEventListener('contextmenu', hrmc);
     return () => {
       window.removeEventListener('keydown', hkd); window.removeEventListener('keyup', hku);
       window.removeEventListener('mousemove', hmm); window.removeEventListener('mousedown', hmd);
+      window.removeEventListener('mouseup', hmu);
       window.removeEventListener('contextmenu', hrmc);
     };
   }, [shoot, punch, pickupItem, useMed, throwGrenade, executeThrowTowardMouse, localId, isHost]);
@@ -1662,8 +1688,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (i.type === 'pistol' || i.type === 'assault_rifle' || i.type === 'shotgun' || i.type === 'grenade' || i.type === 'smoke_grenade') {
           const img = i.type === 'assault_rifle' ? arImgRef.current
             : i.type === 'shotgun' ? shotgunLogoImgRef.current
-            : (i.type === 'grenade' || i.type === 'smoke_grenade') ? grenadeLogoImgRef.current
-            : pistolImgRef.current;
+            : i.type === 'smoke_grenade' ? smokeLogoImgRef.current
+            : grenadeLogoImgRef.current;
           if (img && img.complete && img.naturalWidth > 0) {
             const sz = i.type === 'assault_rifle' ? 50 : i.type === 'shotgun' ? 48 : 34;
             ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
@@ -1794,10 +1820,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.restore();
       });
 
-      // Smoke Clouds
+      // Smoke Clouds - 5 seconds visible, 5 seconds fade
       s.smokeClouds.forEach(cloud => {
         if (cloud.radius <= 0) return;
-        const alpha = Math.min(1, cloud.life / 60) * 0.7;
+        const fadeStartLife = 300;
+        const alpha = (cloud.life > fadeStartLife ? 1 : cloud.life / fadeStartLife) * 0.7;
         const offsets = [{ x: -cloud.radius * 0.15, y: 0 }, { x: cloud.radius * 0.1, y: -cloud.radius * 0.1 }, { x: 0, y: 0 }];
         offsets.forEach((off, i) => {
           const r = cloud.radius * (0.7 + i * 0.15);
@@ -1811,15 +1838,28 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       // In-flight Grenades
       s.grenades.forEach(g => {
         ctx.save(); ctx.translate(g.x, g.y);
-        ctx.fillStyle = '#2d3520';
-        ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
-        ctx.strokeStyle = '#1a2010'; ctx.lineWidth = 1.5; ctx.stroke();
-        if (frameCount.current % 4 < 2) {
-          const sparkAlpha = 0.7 + Math.sin(g.fuseTimer * 0.3) * 0.3;
-          ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(255,160,0,0.9)';
-          ctx.fillStyle = `rgba(255,180,20,${sparkAlpha.toFixed(2)})`;
-          ctx.beginPath(); ctx.arc(5, -5, 3, 0, Math.PI * 2); ctx.fill();
-          ctx.shadowBlur = 0;
+        if (g.isSmokeGrenade) {
+          // Smoke grenade - grey
+          ctx.fillStyle = '#5a5a5a';
+          ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#3a3a3a'; ctx.lineWidth = 1.5; ctx.stroke();
+          // Grey smoke wisps
+          if (frameCount.current % 4 < 2) {
+            ctx.fillStyle = 'rgba(180,180,180,0.6)';
+            ctx.beginPath(); ctx.arc(3, -3, 4, 0, Math.PI * 2); ctx.fill();
+          }
+        } else {
+          // Regular grenade - green with spark
+          ctx.fillStyle = '#2d3520';
+          ctx.beginPath(); ctx.arc(0, 0, 7, 0, Math.PI * 2); ctx.fill();
+          ctx.strokeStyle = '#1a2010'; ctx.lineWidth = 1.5; ctx.stroke();
+          if (frameCount.current % 4 < 2) {
+            const sparkAlpha = 0.7 + Math.sin(g.fuseTimer * 0.3) * 0.3;
+            ctx.shadowBlur = 10; ctx.shadowColor = 'rgba(255,160,0,0.9)';
+            ctx.fillStyle = `rgba(255,180,20,${sparkAlpha.toFixed(2)})`;
+            ctx.beginPath(); ctx.arc(5, -5, 3, 0, Math.PI * 2); ctx.fill();
+            ctx.shadowBlur = 0;
+          }
         }
         ctx.restore();
       });

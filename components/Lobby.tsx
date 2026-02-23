@@ -12,48 +12,48 @@ interface BTemplate {
   crateSpawns: Array<{ x: number; y: number }>;
 }
 const BUILDING_TEMPLATES: BTemplate[] = [
-  // 0: Small Cottage (220×160, wood) — south door, 1 interior partition
+  // 0: Small Cottage (220×160, wood) — south door, 1 interior partition (wider gap)
   { outerW:220, outerH:160, material:'wood',
     wallRects:[
       {x:0,y:-73,w:220,h:14},{x:-70,y:73,w:80,h:14},{x:70,y:73,w:80,h:14},
       {x:-103,y:0,w:14,h:160},{x:103,y:0,w:14,h:160},
-      {x:30,y:-44,w:12,h:44},{x:30,y:44,w:12,h:44},
+      {x:35,y:-52,w:12,h:52},{x:35,y:52,w:12,h:52},
     ],
     interiorBounds:{x:0,y:0,w:192,h:132},
     crateSpawns:[{x:-72,y:-52},{x:-72,y:52},{x:72,y:-52},{x:72,y:52}],
   },
-  // 1: Warehouse (360×240, metal) — 2 large doors (N+S), 4 interior pillars
+  // 1: Warehouse (360×240, metal) — 2 large doors (N+S), 4 interior pillars (wider gaps)
   { outerW:360, outerH:240, material:'metal',
     wallRects:[
       {x:-112.5,y:-113,w:135,h:14},{x:112.5,y:-113,w:135,h:14},
       {x:-112.5,y:113,w:135,h:14},{x:112.5,y:113,w:135,h:14},
       {x:-173,y:0,w:14,h:240},{x:173,y:0,w:14,h:240},
-      {x:-90,y:-60,w:22,h:22},{x:90,y:-60,w:22,h:22},
-      {x:-90,y:60,w:22,h:22},{x:90,y:60,w:22,h:22},
+      {x:-95,y:-65,w:24,h:24},{x:95,y:-65,w:24,h:24},
+      {x:-95,y:65,w:24,h:24},{x:95,y:65,w:24,h:24},
     ],
     interiorBounds:{x:0,y:0,w:332,h:212},
     crateSpawns:[{x:-148,y:95},{x:148,y:95},{x:-148,y:-95},{x:148,y:-95},{x:0,y:95},{x:0,y:-95}],
   },
-  // 2: Bunker (280×200, stone) — west door only, 2 partitions with offset gaps
+  // 2: Bunker (280×200, stone) — west door only, 2 partitions with wider gaps
   { outerW:280, outerH:200, material:'stone',
     wallRects:[
       {x:0,y:-93,w:280,h:14},{x:0,y:93,w:280,h:14},
-      {x:-133,y:-60,w:14,h:66},{x:-133,y:60,w:14,h:66},
+      {x:-133,y:-55,w:14,h:80},{x:-133,y:55,w:14,h:80},
       {x:133,y:0,w:14,h:200},
-      {x:-42,y:-54,w:12,h:64},{x:-42,y:54,w:12,h:64},
-      {x:42,y:-68,w:12,h:36},{x:42,y:40,w:12,h:92},
+      {x:-45,y:-55,w:12,h:70},{x:-45,y:55,w:12,h:70},
+      {x:45,y:-60,w:12,h:50},{x:45,y:45,w:12,h:80},
     ],
     interiorBounds:{x:0,y:0,w:252,h:172},
     crateSpawns:[{x:-100,y:-60},{x:-100,y:60},{x:0,y:-70},{x:0,y:70},{x:100,y:-60},{x:100,y:60}],
   },
-  // 3: Barracks (340×120, wood) — east+west doors, 2 partitions creating 3 bays
+  // 3: Barracks (340×120, wood) — east+west doors, 2 partitions creating 3 bays (wider gaps)
   { outerW:340, outerH:120, material:'wood',
     wallRects:[
       {x:0,y:-53,w:340,h:14},{x:0,y:53,w:340,h:14},
-      {x:-163,y:-38,w:14,h:30},{x:-163,y:38,w:14,h:30},
-      {x:163,y:-38,w:14,h:30},{x:163,y:38,w:14,h:30},
-      {x:-113,y:-32,w:12,h:28},{x:-113,y:32,w:12,h:28},
-      {x:113,y:-32,w:12,h:28},{x:113,y:32,w:12,h:28},
+      {x:-163,y:-42,w:14,h:42},{x:-163,y:42,w:14,h:42},
+      {x:163,y:-42,w:14,h:42},{x:163,y:42,w:14,h:42},
+      {x:-118,y:-38,w:12,h:38},{x:-118,y:38,w:12,h:38},
+      {x:118,y:-38,w:12,h:38},{x:118,y:38,w:12,h:38},
     ],
     interiorBounds:{x:0,y:0,w:312,h:92},
     crateSpawns:[{x:-152,y:-32},{x:-152,y:32},{x:0,y:-32},{x:0,y:32},{x:152,y:-32},{x:152,y:32}],
@@ -67,22 +67,22 @@ const BUILDING_TEMPLATES: BTemplate[] = [
     interiorBounds:{x:0,y:0,w:102,h:102},
     crateSpawns:[{x:-40,y:-40},{x:40,y:-40},{x:-40,y:40},{x:40,y:40}],
   },
-  // 5: Open-Front Shop (220×140, brick) — large north opening, back room partition
+  // 5: Open-Front Shop (220×140, brick) — large north opening, back room partition (wider gap)
   { outerW:220, outerH:140, material:'brick',
     wallRects:[
       {x:-96,y:-63,w:28,h:14},{x:96,y:-63,w:28,h:14},
       {x:0,y:63,w:220,h:14},{x:-103,y:0,w:14,h:140},{x:103,y:0,w:14,h:140},
-      {x:-59,y:15,w:74,h:12},{x:59,y:15,w:74,h:12},
+      {x:-65,y:20,w:90,h:12},{x:65,y:20,w:90,h:12},
     ],
     interiorBounds:{x:0,y:0,w:192,h:112},
     crateSpawns:[{x:-80,y:45},{x:0,y:45},{x:80,y:45},{x:-80,y:-25},{x:80,y:-25}],
   },
-  // 6: Medical Station (200×170, metal) — north door, horizontal partition
+  // 6: Medical Station (200×170, metal) — north door, horizontal partition (wider gap)
   { outerW:200, outerH:170, material:'metal',
     wallRects:[
       {x:-64,y:-78,w:72,h:14},{x:64,y:-78,w:72,h:14},
       {x:0,y:78,w:200,h:14},{x:-93,y:0,w:14,h:170},{x:93,y:0,w:14,h:170},
-      {x:-52,y:12,w:82,h:12},{x:52,y:12,w:82,h:12},
+      {x:-58,y:18,w:85,h:12},{x:58,y:18,w:85,h:12},
     ],
     interiorBounds:{x:0,y:0,w:172,h:142},
     crateSpawns:[{x:-72,y:-50},{x:72,y:-50},{x:-72,y:50},{x:72,y:50},{x:0,y:-50}],
@@ -92,8 +92,8 @@ const BUILDING_TEMPLATES: BTemplate[] = [
     wallRects:[
       {x:0,y:-68,w:150,h:14},{x:-51,y:68,w:51,h:14},{x:51,y:68,w:51,h:14},
       {x:-68,y:0,w:14,h:150},{x:68,y:0,w:14,h:150},
-      {x:-40,y:-40,w:16,h:16},{x:40,y:-40,w:16,h:16},
-      {x:-40,y:40,w:16,h:16},{x:40,y:40,w:16,h:16},
+      {x:-42,y:-42,w:18,h:18},{x:42,y:-42,w:18,h:18},
+      {x:-42,y:42,w:18,h:18},{x:42,y:42,w:18,h:18},
     ],
     interiorBounds:{x:0,y:0,w:122,h:122},
     crateSpawns:[{x:0,y:-30},{x:0,y:30},{x:-48,y:-30},{x:48,y:-30}],
@@ -418,8 +418,35 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         if (prevEnd < edge.span - MIN_DOOR_GAP) doorZones.push(edge.toWorld((prevEnd + edge.span) / 2));
       });
     });
+
+    // Detect interior door gaps (spaces between interior wall segments)
+    const interiorDoorZones: Array<{ x: number; y: number }> = [];
+    const INT_WALL_THICK = 20;
+    const INT_MIN_DOOR_GAP = 55;
+    buildings.forEach(bld => {
+      bld.wallRects.forEach((wr1, i) => {
+        bld.wallRects.forEach((wr2, j) => {
+          if (i >= j) return;
+          const dx = Math.abs((bld.x + wr1.x) - (bld.x + wr2.x));
+          const dy = Math.abs((bld.y + wr1.y) - (bld.y + wr2.y));
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 40 && dist < 120) {
+            const midX = (bld.x + wr1.x + bld.x + wr2.x) / 2;
+            const midY = (bld.y + wr1.y + bld.y + wr2.y) / 2;
+            const inInterior = Math.abs(midX - bld.x) < bld.interiorBounds.w / 2 && 
+                               Math.abs(midY - bld.y) < bld.interiorBounds.h / 2;
+            if (inInterior) {
+              interiorDoorZones.push({ x: midX, y: midY });
+            }
+          }
+        });
+      });
+    });
+
     const DOOR_CLEAR = 110;
+    const INT_DOOR_CLEAR = 55;
     const nearDoor = (x: number, y: number) => doorZones.some(dz => Math.hypot(dz.x - x, dz.y - y) < DOOR_CLEAR);
+    const nearInteriorDoor = (x: number, y: number) => interiorDoorZones.some(dz => Math.hypot(dz.x - x, dz.y - y) < INT_DOOR_CLEAR);
 
     // Helper: true if point (x,y) with given radius overlaps any building (outer footprint + radius)
     const overlapsBuilding = (x: number, y: number, radius: number) =>
@@ -436,36 +463,57 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       return 50; // bush, etc.
     };
 
-    // Remove env objects (trees/bushes/rocks/walls) overlapping buildings or blocking doors
-    const clearEnv = envObjects.filter(obj => {
+    // Separate border walls from other env objects
+    const borderWalls: EnvObject[] = [];
+    const otherEnvObjects: EnvObject[] = [];
+    envObjects.forEach(obj => {
+      if (obj.id.startsWith('border-')) borderWalls.push(obj);
+      else otherEnvObjects.push(obj);
+    });
+
+    // Filter border walls: check against buildings, doors, and other env objects (not other border walls)
+    const filteredBorderWalls = borderWalls.filter(bw => {
+      const r = getEnvObjRadius(bw);
+      return !overlapsBuilding(bw.x, bw.y, r) && !nearDoor(bw.x, bw.y) && !otherEnvObjects.some(e => Math.hypot(bw.x - e.x, bw.y - e.y) < r + getEnvObjRadius(e) + 20);
+    });
+
+    // Filter env objects: check against buildings and doors
+    const filteredEnv = otherEnvObjects.filter(obj => {
       const r = getEnvObjRadius(obj);
       return !overlapsBuilding(obj.x, obj.y, r) && !nearDoor(obj.x, obj.y);
     });
-    envObjects.length = 0;
-    clearEnv.forEach(o => envObjects.push(o));
 
-    // Remove barrels overlapping buildings or blocking doors
-    const clearBarrels = barrels.filter(b =>
+    // Rebuild envObjects with filtered items
+    envObjects.length = 0;
+    filteredBorderWalls.forEach(o => envObjects.push(o));
+    filteredEnv.forEach(o => envObjects.push(o));
+
+    // Filter barrels: check against buildings, doors, and env objects
+    const filteredBarrels = barrels.filter(b =>
       !overlapsBuilding(b.x, b.y, 25) && !buildings.some(bld =>
         bld.wallRects.some(wr => {
           const wx = bld.x + wr.x, wy = bld.y + wr.y;
           return Math.abs(b.x - wx) < wr.w / 2 + 22 && Math.abs(b.y - wy) < wr.h / 2 + 22;
         })
-      ) && !nearDoor(b.x, b.y)
+      ) && !nearDoor(b.x, b.y) && !envObjects.some(e => Math.hypot(b.x - e.x, b.y - e.y) < 60)
     );
     barrels.length = 0;
-    clearBarrels.forEach(b => barrels.push(b));
+    filteredBarrels.forEach(b => barrels.push(b));
 
-    // Remove sandbag barriers overlapping buildings or blocking doors
-    const clearSandbags = sandbagBarriers.filter(sb => !overlapsBuilding(sb.x, sb.y, 35) && !nearDoor(sb.x, sb.y));
-    sandbagBarriers.length = 0;
-    clearSandbags.forEach(sb => sandbagBarriers.push(sb));
-
-    // Remove only outdoor crates overlapping buildings or blocking doors (keep interior building crates)
-    const clearCrates = crates.filter(c =>
-      c.id.startsWith('bld-crate-') ||
-      (!overlapsBuilding(c.x, c.y, 50) && !nearDoor(c.x, c.y))
+    // Filter sandbags: check against buildings, doors, and env objects
+    const filteredSandbags = sandbagBarriers.filter(sb =>
+      !overlapsBuilding(sb.x, sb.y, 35) && !nearDoor(sb.x, sb.y) && !envObjects.some(e => Math.hypot(sb.x - e.x, sb.y - e.y) < 70)
     );
+    sandbagBarriers.length = 0;
+    filteredSandbags.forEach(sb => sandbagBarriers.push(sb));
+
+    // Remove crates: outdoor crates can't block doors, indoor crates can't block interior doors
+    const clearCrates = crates.filter(c => {
+      if (c.id.startsWith('bld-crate-')) {
+        return !nearInteriorDoor(c.x, c.y);
+      }
+      return !overlapsBuilding(c.x, c.y, 50) && !nearDoor(c.x, c.y);
+    });
     crates.length = 0;
     clearCrates.forEach(c => crates.push(c));
 
