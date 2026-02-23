@@ -63,7 +63,7 @@ function explosionBlocked(ex: number, ey: number, px: number, py: number, s: imp
   return false;
 }
 
-const PLAYER_SPEED = 4.5;
+const PLAYER_SPEED = 5.5;
 const PUNCH_COOLDOWN = 12;
 const BULLET_SPEED = 16;
 const PICKUP_RANGE = 70;
@@ -1408,6 +1408,10 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     p.inventory[to] = temp;
   }, [localId]);
 
+  const handleInventorySelect = useCallback((slot: number) => {
+    stateRef.current.players[localId].selectedSlot = slot;
+  }, [localId]);
+
   const handleInventoryDrop = useCallback((slot: number) => {
     const s = stateRef.current;
     const p = s.players[localId];
@@ -1828,19 +1832,24 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.restore();
       });
 
-      // Smoke Clouds - 5 seconds visible, 5 seconds fade (100% opacity when fully visible)
+      // Smoke Clouds - 5 seconds visible, 5 seconds fade (fully opaque grey)
       s.smokeClouds.forEach(cloud => {
         if (cloud.radius <= 0) return;
         const fadeStartLife = 300;
         const alpha = (cloud.life > fadeStartLife ? 1 : cloud.life / fadeStartLife);
-        const offsets = [{ x: -cloud.radius * 0.15, y: 0 }, { x: cloud.radius * 0.1, y: -cloud.radius * 0.1 }, { x: 0, y: 0 }];
-        offsets.forEach((off, i) => {
-          const r = cloud.radius * (0.7 + i * 0.15);
-          ctx.fillStyle = `rgba(160,160,160,${(alpha * 0.5).toFixed(3)})`;
+        const offsets = [
+          { x: -cloud.radius * 0.2, y: cloud.radius * 0.1, grey: 100, rOff: 0.65 },
+          { x: cloud.radius * 0.15, y: -cloud.radius * 0.15, grey: 120, rOff: 0.75 },
+          { x: 0, y: 0, grey: 90, rOff: 0.85 },
+          { x: -cloud.radius * 0.1, y: -cloud.radius * 0.1, grey: 110, rOff: 0.7 },
+        ];
+        offsets.forEach((off) => {
+          const r = cloud.radius * off.rOff;
+          ctx.fillStyle = `rgba(${off.grey},${off.grey},${off.grey},${alpha})`;
           ctx.beginPath(); ctx.arc(cloud.x + off.x, cloud.y + off.y, r, 0, Math.PI * 2); ctx.fill();
         });
-        ctx.strokeStyle = `rgba(80,80,80,${(alpha * 0.3).toFixed(3)})`; ctx.lineWidth = cloud.radius * 0.4;
-        ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius * 0.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = `rgba(80,80,80,${alpha * 0.9})`;
+        ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius * 0.4, 0, Math.PI * 2); ctx.fill();
       });
 
       // In-flight Grenades
@@ -2045,6 +2054,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           <span className="font-bold">Press <span className="bg-white text-black px-1 rounded">E</span> to pick up {nearbyItem.name}</span>
         </div>
       )}
+      {throwModeActive && !uiState.isGameOver && (
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-32 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-lg border border-white/20 pointer-events-none z-50">
+          <span className="font-bold">Press <span className="bg-white text-black px-1 rounded">F</span> or <span className="bg-white text-black px-1 rounded">Left Click</span> to throw • <span className="bg-white text-black px-1 rounded">F</span> to cancel</span>
+        </div>
+      )}
       {/* Kill feed — top right, above stats */}
       {killFeed.length > 0 && (
         <div className="absolute top-36 right-6 flex flex-col items-end gap-1 pointer-events-none z-40">
@@ -2105,8 +2119,10 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         onExit={onExit}
         supplyDrops={uiState.crates.filter(c => c.isSupplyDrop).map(c => ({ id: c.id, x: c.x, y: c.y }))}
         worldSize={worldSize}
+        username={usernames[localId]}
         isThrowModeActive={throwModeActive}
         onInventorySwap={handleInventorySwap}
+        onInventorySelect={handleInventorySelect}
         onInventoryDrop={handleInventoryDrop}
         onSpectate={killedByName ? () => {
           if (killedByPlayerId) {

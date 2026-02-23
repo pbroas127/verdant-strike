@@ -19,13 +19,15 @@ interface HUDProps {
   isThrowModeActive?: boolean;
   onInventorySwap?: (from: number, to: number) => void;
   onInventoryDrop?: (slot: number) => void;
+  onInventorySelect?: (slot: number) => void;
   onSpectate?: () => void;
   killedByName?: string;
   winnerName?: string;
   worldSize?: number;
+  username?: string;
 }
 
-const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop, onSpectate, killedByName, winnerName, worldSize: ws = WORLD_SIZE }) => {
+const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, isGameOver, placement, onExit, supplyDrops = [], isThrowModeActive = false, onInventorySwap, onInventoryDrop, onInventorySelect, onSpectate, killedByName, winnerName, worldSize: ws = WORLD_SIZE, username = '' }) => {
   const [dragFrom, setDragFrom] = React.useState<number | null>(null);
   const currentItem = player.inventory[player.selectedSlot];
   const ammoCount = currentItem?.ammo ?? 0;
@@ -246,7 +248,7 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
       {/* Bottom Left: Health */}
       <div className="absolute bottom-6 left-6 flex flex-col gap-1">
         <div className="flex justify-between items-center w-72 px-2">
-           <span className="text-white text-[10px] font-black tracking-widest drop-shadow-md opacity-60 uppercase">Vital Signs</span>
+           <span className="text-white text-[10px] font-black tracking-widest drop-shadow-md opacity-60 uppercase">{username || 'Vital Signs'}</span>
            <span className="text-white text-sm font-black drop-shadow-md">{Math.round(player.health)}%</span>
         </div>
         <div className="w-72 h-6 bg-black/40 backdrop-blur-md rounded-full border border-white/10 overflow-hidden p-1 shadow-2xl">
@@ -281,7 +283,8 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
                   onDragOver={e => { if (dragFrom !== null) e.preventDefault(); }}
                   onDrop={e => { e.preventDefault(); if (dragFrom !== null && dragFrom !== idx) onInventorySwap?.(dragFrom, idx); setDragFrom(null); }}
                   onDragEnd={e => { if (e.dataTransfer.dropEffect === 'none' && dragFrom !== null) onInventoryDrop?.(dragFrom); setDragFrom(null); }}
-                  className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200 relative overflow-hidden ${
+                  onClick={() => player.selectedSlot !== idx && onInventorySelect?.(idx)}
+                  className={`w-14 h-14 rounded-xl border-2 flex items-center justify-center transition-all duration-200 relative overflow-hidden cursor-pointer ${
                     item ? 'cursor-grab active:cursor-grabbing' : ''
                   } ${
                     player.selectedSlot === idx && dragFrom !== idx ? 'scale-110 shadow-lg border-white' :
