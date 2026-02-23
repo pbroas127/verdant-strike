@@ -141,7 +141,10 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
   const generateBuildings = (WS: number = WORLD_SIZE): { buildings: Building[]; buildingCrates: Crate[] } => {
     const buildings: Building[] = [];
     const buildingCrates: Crate[] = [];
-    const TARGET = 28;
+    // Scale building count with world size (fewer on small maps, similar or slightly more on big maps)
+    const BASE_TARGET = 22;
+    const SIZE_FACTOR = WS / 7000;
+    const TARGET = Math.max(12, Math.round(BASE_TARGET * SIZE_FACTOR));
     const MIN_DIST = 600;
     const EDGE = 600;
     const SCALE = 2;
@@ -154,10 +157,18 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       const x = EDGE + Math.random() * (WS - 2 * EDGE);
       const y = EDGE + Math.random() * (WS - 2 * EDGE);
 
-      const tooClose = buildings.some(b => Math.hypot(b.x - x, b.y - y) < MIN_DIST);
+      const tmpl = BUILDING_TEMPLATES[Math.floor(Math.random() * BUILDING_TEMPLATES.length)];
+      const halfW = (tmpl.outerW * SCALE) / 2;
+      const halfH = (tmpl.outerH * SCALE) / 2;
+
+      // Prevent buildings from overlapping by checking expanded bounding boxes
+      const tooClose = buildings.some(b => {
+        const minDx = halfW + b.outerW / 2 + 80;
+        const minDy = halfH + b.outerH / 2 + 80;
+        return Math.abs(b.x - x) < minDx && Math.abs(b.y - y) < minDy;
+      });
       if (tooClose) continue;
 
-      const tmpl = BUILDING_TEMPLATES[Math.floor(Math.random() * BUILDING_TEMPLATES.length)];
       const building: Building = {
         id: `bld-${buildings.length}`,
         x, y,
@@ -185,14 +196,12 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         if (Math.random() < 0.75) {
           const rawX = x + sp.x * SCALE;
           const rawY = y + sp.y * SCALE;
-          const isGold = Math.random() < 0.10;
           buildingCrates.push({
             id: `bld-crate-${buildings.length}-${i}`,
             x: Math.max(intCX - clampHW, Math.min(intCX + clampHW, rawX)),
             y: Math.max(intCY - clampHH, Math.min(intCY + clampHH, rawY)),
-            health: isGold ? 6 : 3,
-            maxHealth: isGold ? 6 : 3,
-            isGold,
+            health: 3,
+            maxHealth: 3,
           });
         }
       });
@@ -243,7 +252,8 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         id: `gold-crate-${i}`,
         x: pos.x + (Math.random() - 0.5) * 600,
         y: pos.y + (Math.random() - 0.5) * 600,
-        health: 6, maxHealth: 6, isGold: true
+        health: 3,
+        maxHealth: 3,
       });
     });
 
@@ -260,7 +270,13 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     const wallTypes = ['stone_wall', 'wood_wall', 'metal_wall', 'brick_wall', 'mossy_stone_wall'];
     const longWallTypes = ['long_stone_wall', 'long_wood_wall', 'long_brick_wall', 'long_mossy_wall'];
 
-    for (let i = 0; i < 320; i++) {
+    // Scale trees/rocks/walls/bushes with world size:
+    // keep current density on smaller maps, add more on larger maps.
+    const ENV_BASE = 320;
+    const envScale = Math.min(1.6, WORLD_SIZE / 5000);
+    const ENV_COUNT = Math.round(ENV_BASE * envScale);
+
+    for (let i = 0; i < ENV_COUNT; i++) {
       const typeRoll = Math.random();
       let type: any = 'tree';
       let objW: number | undefined, objH: number | undefined;
@@ -469,6 +485,56 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         placed++;
       }
     });
+
+    // ── Gold crate selection: global cap across indoor + outdoor crates, biased toward buildings
+    const GOLD_BASE =
+      WORLD_SIZE <= 6000 ? 3 :
+      WORLD_SIZE <= 8000 ? 4 : 5;
+    const goldTarget = Math.min(GOLD_BASE, crates.length);
+    if (goldTarget > 0) {
+      const indoor: Array<{ idx: number }> = [];
+      const outdoor: Array<{ idx: number }> = [];
+      crates.forEach((c, idx) => {
+        if (c.id.startsWith('bld-crate-')) indoor.push({ idx });
+        else outdoor.push({ idx });
+      });
+
+      const weighted: Array<{ idx: number; weight: number }> = [];
+      indoor.forEach(({ idx }) => weighted.push({ idx, weight: 3 }));
+      outdoor.forEach(({ idx }) => weighted.push({ idx, weight: 1 }));
+
+      const chosen = new Set<number>();
+      let attempts = 0;
+      while (chosen.size < goldTarget && attempts < 1000 && weighted.length > 0) {
+        attempts++;
+        const totalWeight = weighted.reduce((sum, w) => sum + w.weight, 0);
+        let r = Math.random() * totalWeight;
+        let pickedIdx = weighted[0].idx;
+        for (const w of weighted) {
+          if (r < w.weight) { pickedIdx = w.idx; break; }
+          r -= w.weight;
+        }
+        if (!chosen.has(pickedIdx)) {
+          chosen.add(pickedIdx);
+          // remove from weighted so we don't pick it again
+          const removeAt = weighted.findIndex(w => w.idx === pickedIdx);
+          if (removeAt >= 0) weighted.splice(removeAt, 1);
+        }
+      }
+
+      crates.forEach((c, idx) => {
+        if (chosen.has(idx)) {
+          c.isGold = true;
+          c.health = 6;
+          c.maxHealth = 6;
+        } else if (c.isGold) {
+          // Ensure any non-selected crate is normal if previously marked gold for some reason
+          c.isGold = false;
+          c.health = 3;
+          c.maxHealth = 3;
+        }
+      });
+    }
 
     // ── Spawn points: open space only, clear of crates, env objects, buildings, sandbags, barrels, water, campfires
     const SPAWN_CLEAR = 100; // min distance from player center to any obstacle
