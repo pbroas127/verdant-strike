@@ -604,7 +604,29 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     secure: true,
     config: {
       iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
+        {
+          urls: 'stun:stun.relay.metered.ca:80',
+        },
+        {
+          urls: 'turn:global.relay.metered.ca:80',
+          username: 'bee1fd0a69fc2a6e3f31766d',
+          credential: 'eVt9G9UJYqNLOW5q',
+        },
+        {
+          urls: 'turn:global.relay.metered.ca:80?transport=tcp',
+          username: 'bee1fd0a69fc2a6e3f31766d',
+          credential: 'eVt9G9UJYqNLOW5q',
+        },
+        {
+          urls: 'turn:global.relay.metered.ca:443',
+          username: 'bee1fd0a69fc2a6e3f31766d',
+          credential: 'eVt9G9UJYqNLOW5q',
+        },
+        {
+          urls: 'turns:global.relay.metered.ca:443?transport=tcp',
+          username: 'bee1fd0a69fc2a6e3f31766d',
+          credential: 'eVt9G9UJYqNLOW5q',
+        },
       ],
     },
     key: 'verdant-strike',
