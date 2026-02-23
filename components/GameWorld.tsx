@@ -78,7 +78,7 @@ interface GameWorldProps {
   isHost: boolean;
   peer: any;
   conn: any; // host: any[] of client connections; client: single connection to host
-  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string>, worldSize?: number };
+  initialWorldData?: { crates: Crate[], envObjects: EnvObject[], items: Item[], waterBodies?: WaterBody[], playerIds?: string[], buildings?: Building[], campfires?: Campfire[], barrels?: Barrel[], sandbagBarriers?: SandbagBarrier[], usernames?: Record<string, string>, skinColors?: Record<string, string>, worldSize?: number, spawnPoints?: Array<{ x: number; y: number }> };
   onExit: () => void;
   playerId?: string;
   session?: Session | null;
@@ -139,16 +139,20 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const notifiedDeadRef = useRef<Set<string>>(new Set());
   const victoryFiredRef = useRef(false);
 
-  // Core mutable state — players initialised for ALL player IDs in a circle
+  // Core mutable state — players initialised from spawn points (clear of obstacles) or circle fallback
+  const spawnPoints = initialWorldData?.spawnPoints;
   const stateRef = useRef<GameState>({
     players: Object.fromEntries(
       allPlayerIds.map((pid, idx) => {
+        const sp = spawnPoints && spawnPoints[idx];
         const angle = (idx / allPlayerIds.length) * Math.PI * 2 - Math.PI / 2;
         const r = worldSize * 0.35;
+        const x = sp ? sp.x : Math.round(worldSize / 2 + Math.cos(angle) * r);
+        const y = sp ? sp.y : Math.round(worldSize / 2 + Math.sin(angle) * r);
         return [pid, {
           id: pid,
-          x: Math.round(worldSize / 2 + Math.cos(angle) * r),
-          y: Math.round(worldSize / 2 + Math.sin(angle) * r),
+          x,
+          y,
           rotation: 0, health: 100, maxHealth: 100,
           armorHealth: 0, maxArmorHealth: 0, currentArmor: null, kills: 0,
           inventory: [null, null, null, null, null], selectedSlot: 0, isPunching: false, punchCooldown: 0,
@@ -311,8 +315,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
 
       if (crate.isGold) {
-        // Gold crate: always 2 drops, always Epic or Legendary
-        for (let i = 0; i < 2; i++) {
+        // Gold crate: always 1 drop, always Epic or Legendary
+        for (let i = 0; i < 1; i++) {
           const rarity: Rarity = Math.random() > 0.45 ? 'legendary' : 'epic';
           const roll = Math.random();
           let type: ItemType;

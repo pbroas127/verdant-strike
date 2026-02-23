@@ -348,10 +348,10 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       }
     }
 
-    // Explosive barrels (28 scattered)
+    // Explosive barrels (scattered)
     {
       let attempts = 0;
-      while (barrels.length < 16 && attempts < 400) {
+      while (barrels.length < 8 && attempts < 400) {
         attempts++;
         const x = 200 + Math.random() * (WORLD_SIZE - 400);
         const y = 200 + Math.random() * (WORLD_SIZE - 400);
@@ -405,43 +405,54 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     const DOOR_CLEAR = 110;
     const nearDoor = (x: number, y: number) => doorZones.some(dz => Math.hypot(dz.x - x, dz.y - y) < DOOR_CLEAR);
 
-    // Remove env objects (trees/bushes/walls) inside building footprints or blocking doors
-    const clearEnv = envObjects.filter(obj =>
-      !buildings.some(bld =>
-        Math.abs(obj.x - bld.x) < bld.outerW / 2 + 20 &&
-        Math.abs(obj.y - bld.y) < bld.outerH / 2 + 20
-      ) && !nearDoor(obj.x, obj.y)
-    );
+    // Helper: true if point (x,y) with given radius overlaps any building (outer footprint + radius)
+    const overlapsBuilding = (x: number, y: number, radius: number) =>
+      buildings.some(bld =>
+        Math.abs(x - bld.x) < bld.outerW / 2 + radius &&
+        Math.abs(y - bld.y) < bld.outerH / 2 + radius
+      );
+
+    const getEnvObjRadius = (o: EnvObject) => {
+      if (o.w && o.h) return Math.max(o.w, o.h) / 2;
+      if (o.type === 'tree') return o.size * 0.38;
+      if (o.type === 'rock') return o.size * 0.6;
+      if (o.type.includes('wall')) return 30;
+      return 50; // bush, etc.
+    };
+
+    // Remove env objects (trees/bushes/rocks/walls) overlapping buildings or blocking doors
+    const clearEnv = envObjects.filter(obj => {
+      const r = getEnvObjRadius(obj);
+      return !overlapsBuilding(obj.x, obj.y, r) && !nearDoor(obj.x, obj.y);
+    });
     envObjects.length = 0;
     clearEnv.forEach(o => envObjects.push(o));
 
-    // Remove scattered barrels inside/on building walls or blocking doors
+    // Remove barrels overlapping buildings or blocking doors
     const clearBarrels = barrels.filter(b =>
-      !buildings.some(bld => {
-        if (Math.abs(b.x - bld.x) < bld.outerW / 2 + 25 &&
-            Math.abs(b.y - bld.y) < bld.outerH / 2 + 25) return true;
-        return bld.wallRects.some(wr => {
+      !overlapsBuilding(b.x, b.y, 25) && !buildings.some(bld =>
+        bld.wallRects.some(wr => {
           const wx = bld.x + wr.x, wy = bld.y + wr.y;
           return Math.abs(b.x - wx) < wr.w / 2 + 22 && Math.abs(b.y - wy) < wr.h / 2 + 22;
-        });
-      }) && !nearDoor(b.x, b.y)
+        })
+      ) && !nearDoor(b.x, b.y)
     );
     barrels.length = 0;
     clearBarrels.forEach(b => barrels.push(b));
 
-    // Remove sandbag barriers blocking doors
-    const clearSandbags = sandbagBarriers.filter(sb => !nearDoor(sb.x, sb.y));
+    // Remove sandbag barriers overlapping buildings or blocking doors
+    const clearSandbags = sandbagBarriers.filter(sb => !overlapsBuilding(sb.x, sb.y, 35) && !nearDoor(sb.x, sb.y));
     sandbagBarriers.length = 0;
     clearSandbags.forEach(sb => sandbagBarriers.push(sb));
 
-    // Remove scattered crates blocking doors
-    const clearCrates = crates.filter(c => !nearDoor(c.x, c.y));
+    // Remove crates overlapping buildings or blocking doors
+    const clearCrates = crates.filter(c => !overlapsBuilding(c.x, c.y, 50) && !nearDoor(c.x, c.y));
     crates.length = 0;
     clearCrates.forEach(c => crates.push(c));
 
-    // 1-3 extra barrels outside each building (guaranteed clear of walls and doors)
+    // 0-2 extra barrels outside each building (guaranteed clear of walls and doors)
     buildings.forEach((bld, bi) => {
-      const nearCount = 1 + Math.floor(Math.random() * 3);
+      const nearCount = Math.floor(Math.random() * 3);
       const minDist = Math.max(bld.outerW, bld.outerH) / 2 + 40;
       let placed = 0, attempts = 0;
       while (placed < nearCount && attempts < 40) {
@@ -456,7 +467,64 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       }
     });
 
-    return { crates, envObjects, items: [] as Item[], waterBodies, buildings, campfires, barrels, sandbagBarriers, worldSize: WORLD_SIZE };
+    // ── Spawn points: open space only, clear of crates, env objects, buildings, sandbags, barrels, water, campfires
+    const SPAWN_CLEAR = 100; // min distance from player center to any obstacle
+    const isInWater = (px: number, py: number) => waterBodies.some(wb => {
+      if (wb.type === 'pond') {
+        const dx = (px - wb.x) / wb.rx, dy = (py - wb.y) / wb.ry;
+        return dx * dx + dy * dy <= 1;
+      }
+      if (wb.points && wb.points.length >= 1) {
+        const halfW = (wb.streamWidth || 55) / 2;
+        const allPts = [{ x: wb.x, y: wb.y }, ...wb.points];
+        for (let i = 0; i < allPts.length - 1; i++) {
+          const ax = allPts[i].x, ay = allPts[i].y;
+          const bx = allPts[i + 1].x, by = allPts[i + 1].y;
+          const len2 = (bx - ax) ** 2 + (by - ay) ** 2;
+          const t = len2 > 0 ? Math.max(0, Math.min(1, ((px - ax) * (bx - ax) + (py - ay) * (by - ay)) / len2)) : 0;
+          const cx = ax + t * (bx - ax), cy = ay + t * (by - ay);
+          if (Math.hypot(px - cx, py - cy) < halfW) return true;
+        }
+      }
+      return false;
+    });
+    const isPositionClear = (px: number, py: number) => {
+      if (px < SPAWN_CLEAR || py < SPAWN_CLEAR || px > WORLD_SIZE - SPAWN_CLEAR || py > WORLD_SIZE - SPAWN_CLEAR) return false;
+      if (isInWater(px, py)) return false;
+      if (crates.some(c => Math.hypot(c.x - px, c.y - py) < 45 + SPAWN_CLEAR)) return false;
+      if (envObjects.some(o => {
+        const r = o.w && o.h ? Math.max(o.w, o.h) / 2 : (o.type === 'tree' ? o.size * 0.38 : o.type === 'rock' ? o.size * 0.6 : o.type.includes('wall') ? 30 : 45);
+        return Math.hypot(o.x - px, o.y - py) < r + SPAWN_CLEAR;
+      })) return false;
+      if (buildings.some(b => Math.abs(px - b.x) < b.outerW / 2 + SPAWN_CLEAR && Math.abs(py - b.y) < b.outerH / 2 + SPAWN_CLEAR)) return false;
+      if (campfires.some(cf => Math.hypot(cf.x - px, cf.y - py) < 50 + SPAWN_CLEAR)) return false;
+      if (barrels.some(b => Math.hypot(b.x - px, b.y - py) < 18 + SPAWN_CLEAR)) return false;
+      if (sandbagBarriers.some(sb => Math.hypot(sb.x - px, sb.y - py) < 30 + SPAWN_CLEAR)) return false;
+      return true;
+    };
+
+    const spawnPoints: Array<{ x: number; y: number }> = [];
+    const baseR = WORLD_SIZE * 0.35;
+    const edgeInset = 250;
+    const SPAWN_MIN_DIST = 150; // min distance between spawn points
+    for (let i = 0; i < playerCount; i++) {
+      const baseAngle = (i / Math.max(1, playerCount)) * Math.PI * 2 - Math.PI / 2;
+      let x = Math.round(WORLD_SIZE / 2 + Math.cos(baseAngle) * baseR);
+      let y = Math.round(WORLD_SIZE / 2 + Math.sin(baseAngle) * baseR);
+      let attempts = 0;
+      while ((!isPositionClear(x, y) || spawnPoints.some(sp => Math.hypot(sp.x - x, sp.y - y) < SPAWN_MIN_DIST)) && attempts < 600) {
+        attempts++;
+        x = Math.round(edgeInset + Math.random() * (WORLD_SIZE - 2 * edgeInset));
+        y = Math.round(edgeInset + Math.random() * (WORLD_SIZE - 2 * edgeInset));
+      }
+      if (isPositionClear(x, y) && (spawnPoints.length === 0 || spawnPoints.every(sp => Math.hypot(sp.x - x, sp.y - y) >= SPAWN_MIN_DIST))) {
+        spawnPoints.push({ x, y });
+      } else {
+        spawnPoints.push({ x: Math.round(WORLD_SIZE / 2 + Math.cos(baseAngle) * baseR), y: Math.round(WORLD_SIZE / 2 + Math.sin(baseAngle) * baseR) });
+      }
+    }
+
+    return { crates, envObjects, items: [] as Item[], waterBodies, buildings, campfires, barrels, sandbagBarriers, worldSize: WORLD_SIZE, spawnPoints };
   };
 
   const initHost = () => {
