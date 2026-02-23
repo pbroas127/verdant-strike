@@ -598,8 +598,10 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
   // Central PeerJS connection options so host and join use the same server
   const PEER_CONFIG: any = {
-    // TODO: change these when you host your own PeerJS server.
-    // For now this still uses the public cloud server but with explicit ICE config.
+    host: 'server-gyw4.onrender.com',
+    port: 443,
+    path: '/peerjs',
+    secure: true,
     config: {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
