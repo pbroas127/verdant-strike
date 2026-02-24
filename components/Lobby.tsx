@@ -115,7 +115,7 @@ interface LobbyProps {
 }
 
 const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
-  const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting' | 'customize' | 'pass'>('main');
+  const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting' | 'customize' | 'pass' | 'tutorial'>('main');
   const [passPage, setPassPage] = useState(0);
   const [lobbyCode, setLobbyCode] = useState('');
   const [enteredCode, setEnteredCode] = useState('');
@@ -1141,10 +1141,23 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
             <div className="flex items-center gap-0">
               {[0,1,2,3,4].map((i) => {
                 const levelNum = passPage * 5 + i + 1;
+                const isLevel50 = levelNum === 50;
+                const isMilestone = levelNum % 10 === 0 && levelNum < 50;
+                
+                let cardClass = "w-28 h-40 rounded-xl border-2 bg-gradient-to-b from-white/10 to-white/5 flex flex-col items-center justify-center gap-2 relative overflow-hidden shadow-lg transition-all duration-200 cursor-pointer";
+                
+                if (isLevel50) {
+                  cardClass += " border-yellow-600/60 shadow-[0_0_20px_rgba(234,179,8,0.3)] hover:border-yellow-300 hover:shadow-[0_0_35px_rgba(234,179,8,0.6)] hover:scale-110";
+                } else if (isMilestone) {
+                  cardClass += " border-blue-900/60 shadow-[0_0_15px_rgba(30,58,138,0.4)] hover:border-blue-400 hover:shadow-[0_0_30px_rgba(59,130,246,0.6)] hover:scale-110";
+                } else {
+                  cardClass += " border-white/25 hover:border-white hover:shadow-[0_0_25px_rgba(255,255,255,0.3)] hover:scale-110";
+                }
+                
                 return (
                   <div key={levelNum} className="flex items-center">
                     {/* Card */}
-                    <div className="w-28 h-40 rounded-xl border-2 border-white/25 bg-gradient-to-b from-white/10 to-white/5 flex flex-col items-center justify-center gap-2 relative overflow-hidden shadow-lg">
+                    <div className={cardClass}>
                       <div className="text-white/60 font-black text-5xl italic">{levelNum}</div>
                       <svg className="w-8 h-8 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="11" width="18" height="11" rx="2" />
@@ -1183,6 +1196,88 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
       </div>
       )}
 
+      {/* Tutorial Screen */}
+      {menuState === 'tutorial' && (
+        <div className="absolute inset-0 z-30 flex pointer-events-auto select-none" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.85)' }}>
+          <div className="absolute top-6 left-6">
+            <button
+              onClick={() => setMenuState('main')}
+              className="text-white/50 hover:text-white font-black text-sm tracking-widest uppercase transition-colors"
+            >
+              ← BACK TO MAIN MENU
+            </button>
+          </div>
+
+          {/* Title */}
+          <div className="absolute top-8 left-1/2 -translate-x-1/2">
+            <h2 className="text-white text-4xl font-black italic tracking-wider drop-shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+              TUTORIAL
+            </h2>
+          </div>
+
+          {/* Main Content Area */}
+          <div className="flex-1 flex items-center justify-center p-8">
+            <div className="bg-white rounded-3xl w-[900px] h-[500px] flex flex-col p-8 shadow-2xl">
+              
+              {/* 3 Cards */}
+              <div className="flex-1 flex gap-6">
+                {/* Card 1 - Loot */}
+                <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                  <div className="flex flex-col items-center gap-1">
+                    {/* Supply Crate */}
+                    <div className="w-14 h-14 bg-blue-500 rounded-lg flex items-center justify-center shadow-lg">
+                      <span className="text-white text-xs font-bold">SUPPLY</span>
+                    </div>
+                    {/* Normal + Golden */}
+                    <div className="flex gap-1">
+                      <div className="w-12 h-12 bg-amber-700 rounded-lg flex items-center justify-center shadow-md">
+                        <span className="text-white text-xs font-bold">NORM</span>
+                      </div>
+                      <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center shadow-md border-2 border-yellow-300">
+                        <span className="text-white text-xs font-bold">GOLD</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-black font-bold text-lg">LOOT</div>
+                  <div className="text-gray-600 text-sm text-center px-2">
+                    Destroy crates to earn loot, some better than others.
+                  </div>
+                </div>
+
+                {/* Card 2 - Storm */}
+                <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                  <div className="text-6xl">⛈️</div>
+                  <div className="text-black font-bold text-lg">STORM</div>
+                  <div className="text-gray-600 text-sm text-center px-2">
+                    2 minutes to loot, 1 minute off and on storms getting smaller everytime.
+                  </div>
+                </div>
+
+                {/* Card 3 - Win */}
+                <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                  <div className="text-6xl">🏆</div>
+                  <div className="text-black font-bold text-lg">WIN</div>
+                  <div className="text-gray-600 text-sm text-center px-2">
+                    Kill all players and be last standing to win.
+                  </div>
+                </div>
+              </div>
+
+              {/* Back Button */}
+              <div className="mt-6 flex justify-center">
+                <button
+                  onClick={() => setMenuState('main')}
+                  className="px-8 py-3 bg-gray-800 text-white font-black text-lg rounded-xl hover:bg-gray-700 hover:scale-105 transition-all"
+                >
+                  BACK TO MAIN MENU
+                </button>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Centered UI */}
       <div className="relative z-10 flex flex-col items-center gap-3 pointer-events-auto select-none">
 
@@ -1201,12 +1296,21 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
           {menuState === 'main' && (
             <div className="p-3 flex flex-col gap-2">
-              <button
-                onClick={() => { setPassPage(0); setMenuState('pass'); }}
-                className="w-full px-8 py-4 bg-gradient-to-r from-green-600 to-green-500 text-white font-black text-xl rounded-2xl hover:from-green-500 hover:to-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-[0_0_30px_rgba(34,197,94,0.4)] animate-pulse"
-              >
-                VERDANT PASS
-              </button>
+              <div className="relative">
+                <button
+                  onClick={() => { setPassPage(0); setMenuState('pass'); }}
+                  className="w-full px-8 py-4 bg-gradient-to-r from-green-600 to-green-500 text-white font-black text-xl rounded-2xl hover:from-green-500 hover:to-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-[0_0_30px_rgba(34,197,94,0.4)] animate-pulse"
+                >
+                  VERDANT PASS
+                </button>
+                <div className="absolute -right-36 top-1/2 -translate-y-1/2">
+                  <div className="relative">
+                    <div className="bg-white text-black text-xs font-bold px-3 py-2 rounded-2xl rounded-tl-none shadow-lg whitespace-nowrap">
+                      Season 1 Pass Coming Soon!
+                    </div>
+                  </div>
+                </div>
+              </div>
               <button
                 onClick={() => setMenuState('create')}
                 className="w-full px-8 py-4 bg-white text-black font-black text-lg rounded-2xl hover:bg-green-400 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-lg"
@@ -1218,6 +1322,12 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
                 className="w-full px-8 py-4 bg-white/8 text-white font-black text-lg rounded-2xl border border-white/12 hover:bg-white hover:text-black hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
               >
                 JOIN GAME
+              </button>
+              <button
+                onClick={() => setMenuState('tutorial')}
+                className="w-full px-8 py-4 bg-white/4 text-white/60 font-black text-lg rounded-2xl border border-white/8 hover:bg-white/10 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
+              >
+                TUTORIAL
               </button>
               <button
                 onClick={() => setMenuState('customize')}
