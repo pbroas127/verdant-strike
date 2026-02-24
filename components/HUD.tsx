@@ -74,7 +74,7 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
   };
 
   const getItemContent = (item: Item, size: 'sm' | 'lg') => {
-    const px = size === 'sm' ? 'w-8 h-8' : 'w-12 h-12';
+    const px = size === 'sm' ? 'w-10 h-10' : 'w-14 h-14';
     const arPx = size === 'sm' ? 'w-10 h-10' : 'w-14 h-14';
     if (item.type === 'pistol') {
       return <img src={pistolLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
@@ -291,7 +291,7 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
               PRESS <span className="underline">E</span> TO USE {currentItem.name.toUpperCase()}
             </div>
           )}
-          {(currentItem?.type === 'grenade' || currentItem?.type === 'smoke_grenade') && (
+          {(currentItem?.type === 'grenade' || currentItem?.type === 'smoke_grenade' || currentItem?.type === 'molotov') && (
             <div className={`${isThrowModeActive ? 'bg-red-500/90 animate-pulse' : 'bg-green-500/90 animate-bounce'} text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg`}>
               {isThrowModeActive
                 ? 'LEFT CLICK OR F TO THROW · F TO CANCEL'
@@ -347,10 +347,10 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
           <div className="flex flex-col items-center gap-1">
             <span className="text-[9px] font-black text-white/40 tracking-widest uppercase">Armor</span>
             <div 
-              className="w-16 h-16 bg-black/40 backdrop-blur-md rounded-xl border-2 flex items-center justify-center relative shadow-2xl transition-colors"
+              className="w-16 h-16 bg-black/40 backdrop-blur-md rounded-xl border-2 flex items-center justify-center relative shadow-2xl"
               style={{ borderColor: player.currentArmor ? RARITY_COLORS[player.currentArmor.rarity] : 'rgba(255,255,255,0.1)' }}
             >
-               {player.currentArmor ? <span className="text-3xl drop-shadow-[0_0_8px_white]">🛡️</span> : <span className="text-white/10 text-[8px]">NONE</span>}
+               {player.currentArmor ? <img src={armorLogoUrl} className="w-10 h-10 object-contain" style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[player.currentArmor.rarity]})` }} /> : <span className="text-white/10 text-[8px]">NONE</span>}
             </div>
           </div>
           <div className="flex flex-col items-center gap-1">

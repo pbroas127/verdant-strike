@@ -1396,7 +1396,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         } else {
           const _p = stateRef.current.players[localId];
           const _item = _p.inventory[_p.selectedSlot];
-          if (_item && (_item.type === 'grenade' || _item.type === 'smoke_grenade')) {
+          if (_item && (_item.type === 'grenade' || _item.type === 'smoke_grenade' || _item.type === 'molotov')) {
             throwModeRef.current = true; setThrowModeActive(true);
           }
         }
@@ -1741,20 +1741,20 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.save(); ctx.translate(i.x, i.y);
         ctx.shadowBlur = 22; ctx.shadowColor = RARITY_COLORS[i.rarity];
         let img: HTMLImageElement | null = null;
-        let sz = 34;
+        let sz = 40;
         if (i.type === 'pistol') { img = pistolImgRef.current; sz = 32; }
         else if (i.type === 'assault_rifle') { img = arImgRef.current; sz = 50; }
         else if (i.type === 'shotgun') { img = shotgunLogoImgRef.current; sz = 48; }
-        else if (i.type === 'grenade') { img = grenadeLogoImgRef.current; }
-        else if (i.type === 'smoke_grenade') { img = smokeLogoImgRef.current; }
-        else if (i.type === 'molotov') { img = molotovLogoImgRef.current; }
-        else if (i.type === 'band_aid') { img = bandAidLogoImgRef.current; }
-        else if (i.type === 'medkit') { img = medKitLogoImgRef.current; }
-        else if (i.type === 'heal_potion') { img = healPotionLogoImgRef.current; }
-        else if (i.type === 'heal_shot') { img = healShotLogoImgRef.current; }
-        else if (i.type === 'armor') { img = armorLogoImgRef.current; }
-        else if (i.type === 'ammo_crate') { img = ammoCrateLogoImgRef.current; }
-        else if (i.type === 'golden_wrap') { img = goldenWrapLogoImgRef.current; }
+        else if (i.type === 'grenade') { img = grenadeLogoImgRef.current; sz = 38; }
+        else if (i.type === 'smoke_grenade') { img = smokeLogoImgRef.current; sz = 38; }
+        else if (i.type === 'molotov') { img = molotovLogoImgRef.current; sz = 38; }
+        else if (i.type === 'band_aid') { img = bandAidLogoImgRef.current; sz = 40; }
+        else if (i.type === 'medkit') { img = medKitLogoImgRef.current; sz = 42; }
+        else if (i.type === 'heal_potion') { img = healPotionLogoImgRef.current; sz = 40; }
+        else if (i.type === 'heal_shot') { img = healShotLogoImgRef.current; sz = 38; }
+        else if (i.type === 'armor') { img = armorLogoImgRef.current; sz = 44; }
+        else if (i.type === 'ammo_crate') { img = ammoCrateLogoImgRef.current; sz = 46; }
+        else if (i.type === 'golden_wrap') { img = goldenWrapLogoImgRef.current; sz = 40; }
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
         }
