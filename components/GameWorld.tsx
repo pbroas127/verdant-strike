@@ -263,11 +263,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   }, []);
 
   const spawnParticles = (x: number, y: number, color: string, count: number, type: 'wood' | 'leaf' | 'stone' | 'metal' | 'blood' | 'water' | 'fire') => {
-    // Cap total particles to prevent performance issues
-    const MAX_PARTICLES = 200;
-    if (stateRef.current.particles.length >= MAX_PARTICLES) return;
-    const actualCount = Math.min(count, MAX_PARTICLES - stateRef.current.particles.length);
-    for (let i = 0; i < actualCount; i++) {
+    for (let i = 0; i < count; i++) {
       stateRef.current.particles.push({
         id: Math.random().toString(),
         x, y,
