@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { Barrel, Building, Campfire, Crate, EnvObject, Item, SandbagBarrier, WaterBody, WORLD_SIZE } from '../types';
+import topDownARUrl from '../Assets/TopDownAR.png';
 
 // ─── Building templates ───────────────────────────────────────────────────────
 // All coordinates relative to building center. Wall thickness = 14px.
@@ -782,7 +783,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     };
   }, [menuState === 'create']);
 
-  // Animated battle scene background
+  // Static game-style background
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -795,71 +796,62 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
     const onResize = () => {
       W = window.innerWidth; H = window.innerHeight;
       canvas.width = W; canvas.height = H;
+      render();
     };
     window.addEventListener('resize', onResize);
 
-    const S = Math.min(W, H) / 700;
-
-    // Static map elements (fractional positions)
-    const trees: { fx: number; fy: number; r: number; seed: number }[] = [
-      { fx: 0.08, fy: 0.12, r: 48 * S, seed: 0 }, { fx: 0.92, fy: 0.10, r: 52 * S, seed: 1 },
-      { fx: 0.18, fy: 0.78, r: 44 * S, seed: 2 }, { fx: 0.80, fy: 0.82, r: 50 * S, seed: 3 },
-      { fx: 0.50, fy: 0.08, r: 40 * S, seed: 4 }, { fx: 0.12, fy: 0.50, r: 46 * S, seed: 5 },
-      { fx: 0.88, fy: 0.55, r: 48 * S, seed: 6 }, { fx: 0.38, fy: 0.88, r: 42 * S, seed: 7 },
-      { fx: 0.62, fy: 0.25, r: 45 * S, seed: 8 }, { fx: 0.32, fy: 0.38, r: 40 * S, seed: 9 },
-      { fx: 0.72, fy: 0.60, r: 43 * S, seed: 10 }, { fx: 0.55, fy: 0.70, r: 38 * S, seed: 11 },
-      { fx: 0.20, fy: 0.22, r: 41 * S, seed: 12 }, { fx: 0.78, fy: 0.20, r: 44 * S, seed: 13 },
-    ];
-
-    const sceneCrates: { fx: number; fy: number; isGold: boolean }[] = [
-      { fx: 0.30, fy: 0.30, isGold: false }, { fx: 0.70, fy: 0.28, isGold: false },
-      { fx: 0.50, fy: 0.50, isGold: true  }, { fx: 0.28, fy: 0.68, isGold: false },
-      { fx: 0.72, fy: 0.70, isGold: false }, { fx: 0.18, fy: 0.48, isGold: false },
-      { fx: 0.82, fy: 0.45, isGold: false }, { fx: 0.48, fy: 0.20, isGold: false },
-    ];
-
-    // Demo players — team 0 (left side) vs team 1 (right side)
-    const makePl = (fx: number, fy: number, team: number) => ({
-      x: fx * W, y: fy * H,
-      rot: team === 0 ? 0.3 : Math.PI - 0.3,
-      targetX: Math.random() * W, targetY: Math.random() * H,
-      team,
-      shootTimer: Math.floor(Math.random() * 80),
-      color: team === 0 ? '#ffe0bd' : '#c8a87a',
-    });
-
-    const demoPlayers = [
-      makePl(0.18, 0.32, 0), makePl(0.12, 0.58, 0), makePl(0.25, 0.48, 0),
-      makePl(0.82, 0.30, 1), makePl(0.88, 0.62, 1), makePl(0.75, 0.46, 1),
-    ];
-
-    type Bullet = { x: number; y: number; vx: number; vy: number; life: number };
-    type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number };
-
-    let bullets: Bullet[] = [];
-    let particles: Particle[] = [];
-
-    const spawnHit = (x: number, y: number, color: string) => {
-      for (let i = 0; i < 8; i++) {
-        particles.push({
-          x, y,
-          vx: (Math.random() - 0.5) * 6,
-          vy: (Math.random() - 0.5) * 6,
-          life: 25 + Math.random() * 15, maxLife: 40,
-          color, size: 2 + Math.random() * 3,
-        });
-      }
-    };
-
     const treeGreens = ['#1a3a1a', '#2d4a2d', '#1e4020', '#2a5c2a', '#1f4a1f', '#254d25'];
-    let rafId: number;
+    const rockGreys = ['#4a4a4a', '#5a5a5a', '#3a3a3a'];
 
-    const loop = () => {
+    // Environment elements - bigger trees like small world
+    const envObjects: Array<{type: 'tree' | 'rock' | 'bush' | 'crate' | 'barrel', x: number, y: number, size: number, seed: number, isGold?: boolean}> = [
+      { type: 'tree', x: 0.05, y: 0.08, size: 90, seed: 0 },
+      { type: 'tree', x: 0.95, y: 0.06, size: 95, seed: 1 },
+      { type: 'tree', x: 0.12, y: 0.85, size: 85, seed: 2 },
+      { type: 'tree', x: 0.88, y: 0.88, size: 92, seed: 3 },
+      { type: 'tree', x: 0.03, y: 0.45, size: 88, seed: 4 },
+      { type: 'tree', x: 0.97, y: 0.52, size: 90, seed: 5 },
+      { type: 'tree', x: 0.22, y: 0.03, size: 80, seed: 6 },
+      { type: 'tree', x: 0.75, y: 0.02, size: 85, seed: 7 },
+      { type: 'tree', x: 0.35, y: 0.95, size: 82, seed: 8 },
+      { type: 'tree', x: 0.65, y: 0.97, size: 88, seed: 9 },
+      { type: 'tree', x: 0.15, y: 0.25, size: 75, seed: 10 },
+      { type: 'tree', x: 0.82, y: 0.28, size: 78, seed: 11 },
+      { type: 'rock', x: 0.25, y: 0.15, size: 35, seed: 0 },
+      { type: 'rock', x: 0.72, y: 0.18, size: 40, seed: 1 },
+      { type: 'rock', x: 0.18, y: 0.72, size: 32, seed: 2 },
+      { type: 'rock', x: 0.78, y: 0.75, size: 38, seed: 3 },
+      { type: 'rock', x: 0.45, y: 0.08, size: 30, seed: 4 },
+      { type: 'rock', x: 0.55, y: 0.92, size: 35, seed: 5 },
+      { type: 'bush', x: 0.08, y: 0.35, size: 50, seed: 0 },
+      { type: 'bush', x: 0.92, y: 0.38, size: 55, seed: 1 },
+      { type: 'bush', x: 0.28, y: 0.62, size: 48, seed: 2 },
+      { type: 'bush', x: 0.68, y: 0.58, size: 52, seed: 3 },
+      { type: 'crate', x: 0.32, y: 0.28, size: 28, seed: 0 },
+      { type: 'crate', x: 0.68, y: 0.32, size: 28, seed: 1 },
+      { type: 'crate', x: 0.48, y: 0.52, size: 28, seed: 2, isGold: true },
+      { type: 'crate', x: 0.22, y: 0.65, size: 28, seed: 3 },
+      { type: 'crate', x: 0.75, y: 0.68, size: 28, seed: 4 },
+      { type: 'barrel', x: 0.42, y: 0.12, size: 18, seed: 0 },
+      { type: 'barrel', x: 0.58, y: 0.85, size: 18, seed: 1 },
+      { type: 'barrel', x: 0.12, y: 0.55, size: 18, seed: 2 },
+      { type: 'barrel', x: 0.88, y: 0.48, size: 18, seed: 3 },
+    ];
+
+    // Buildings
+    const buildings: Array<{x: number, y: number, w: number, h: number, material: string}> = [
+      { x: 0.25, y: 0.45, w: 120, h: 90, material: 'wood' },
+      { x: 0.75, y: 0.42, w: 140, h: 100, material: 'metal' },
+      { x: 0.18, y: 0.72, w: 100, h: 80, material: 'stone' },
+      { x: 0.82, y: 0.75, w: 110, h: 85, material: 'brick' },
+    ];
+
+    const render = () => {
       ctx.clearRect(0, 0, W, H);
 
-      // Floor tiles
-      const floorPalette = ['#064e3b', '#053d30', '#074f3c', '#055840', '#054538'];
-      const tileSize = 180;
+      // Floor - darker grass tiles
+      const floorPalette = ['#052e1e', '#042918', '#063224', '#052a1c', '#042615'];
+      const tileSize = 140;
       for (let tx = 0; tx < W; tx += tileSize) {
         for (let ty = 0; ty < H; ty += tileSize) {
           const idx = Math.floor(((tx / tileSize) * 3 + (ty / tileSize) * 7) % floorPalette.length);
@@ -867,167 +859,114 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
           ctx.fillRect(tx, ty, tileSize, tileSize);
         }
       }
-      // Subtle grid
-      ctx.strokeStyle = 'rgba(255,255,255,0.025)'; ctx.lineWidth = 1;
-      for (let x = 0; x <= W; x += tileSize) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-      for (let y = 0; y <= H; y += tileSize) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
 
-      // Crates
-      const crateS = 22 * S;
-      sceneCrates.forEach(c => {
-        const cx = c.fx * W, cy = c.fy * H;
-        ctx.save(); ctx.translate(cx, cy);
-        ctx.fillStyle = c.isGold ? '#92400e' : '#78350f';
-        ctx.strokeStyle = c.isGold ? '#eab308' : '#451a03'; ctx.lineWidth = 2;
-        ctx.fillRect(-crateS, -crateS, crateS * 2, crateS * 2);
-        ctx.strokeRect(-crateS, -crateS, crateS * 2, crateS * 2);
-        if (c.isGold) {
-          ctx.fillStyle = '#eab308'; ctx.font = `bold ${Math.round(13 * S)}px sans-serif`;
-          ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('★', 0, 0);
-        } else {
-          ctx.beginPath(); ctx.moveTo(-crateS, -crateS); ctx.lineTo(crateS, crateS); ctx.stroke();
-        }
-        ctx.restore();
-      });
-
-      // Tree trunks
-      trees.forEach(t => {
-        ctx.fillStyle = '#2c1810';
-        ctx.beginPath(); ctx.arc(t.fx * W, t.fy * H + 4 * S, 9 * S, 0, Math.PI * 2); ctx.fill();
-      });
-
-      // Update and draw demo players
-      demoPlayers.forEach(pl => {
-        const dx = pl.targetX - pl.x, dy = pl.targetY - pl.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist > 5) {
-          pl.x += (dx / dist) * 1.6;
-          pl.y += (dy / dist) * 1.6;
-          // Keep inside screen
-          pl.x = Math.max(40, Math.min(W - 40, pl.x));
-          pl.y = Math.max(40, Math.min(H - 40, pl.y));
-        } else {
-          pl.targetX = W * (0.05 + Math.random() * 0.9);
-          pl.targetY = H * (0.05 + Math.random() * 0.9);
-        }
-
-        // Aim at nearest enemy
-        const enemy = demoPlayers.find(p2 => p2.team !== pl.team);
-        if (enemy) {
-          const targetAngle = Math.atan2(enemy.y - pl.y, enemy.x - pl.x);
-          // Smooth rotation
-          let diff = targetAngle - pl.rot;
-          while (diff > Math.PI) diff -= Math.PI * 2;
-          while (diff < -Math.PI) diff += Math.PI * 2;
-          pl.rot += diff * 0.06;
-        }
-
-        // Shoot
-        pl.shootTimer--;
-        if (pl.shootTimer <= 0 && enemy) {
-          pl.shootTimer = 65 + Math.floor(Math.random() * 70);
-          const angle = pl.rot + (Math.random() - 0.5) * 0.28;
-          const spd = 10;
-          bullets.push({
-            x: pl.x + Math.cos(angle) * 22 * S,
-            y: pl.y + Math.sin(angle) * 22 * S,
-            vx: Math.cos(angle) * spd,
-            vy: Math.sin(angle) * spd,
-            life: 55 + Math.floor(Math.random() * 20),
-          });
-        }
-
-        // Draw player
-        ctx.save(); ctx.translate(pl.x, pl.y); ctx.rotate(pl.rot);
-        ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1.5;
-        // Body
-        ctx.fillStyle = pl.color;
-        ctx.beginPath(); ctx.arc(0, 0, 16 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        // Head
-        ctx.fillStyle = pl.color;
-        ctx.beginPath(); ctx.arc(10 * S, -13 * S, 6 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-        // Eyes
-        ctx.fillStyle = '#000';
-        ctx.beginPath(); ctx.arc(9 * S, -5 * S, 2 * S, 0, Math.PI * 2); ctx.fill();
-        ctx.beginPath(); ctx.arc(9 * S, 4 * S, 2 * S, 0, Math.PI * 2); ctx.fill();
-        // AR Gun - rifle style
+      // Draw buildings
+      buildings.forEach(b => {
+        const bx = b.x * W, by = b.y * H;
+        ctx.save(); ctx.translate(bx, by);
+        
+        const matColors: Record<string, {fill: string, stroke: string}> = {
+          wood: { fill: '#5c4033', stroke: '#3d2817' },
+          metal: { fill: '#5a5a5a', stroke: '#3a3a3a' },
+          stone: { fill: '#6b6b6b', stroke: '#4a4a4a' },
+          brick: { fill: '#8b4513', stroke: '#5c2e0a' },
+        };
+        const col = matColors[b.material] || matColors.stone;
+        
+        ctx.fillStyle = col.fill;
+        ctx.strokeStyle = col.stroke;
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.roundRect(-b.w/2, -b.h/2, b.w, b.h, 4);
+        ctx.fill();
+        ctx.stroke();
+        
+        // Door
         ctx.fillStyle = '#1a1a1a';
-        ctx.beginPath(); ctx.roundRect(12 * S, 1 * S, 30 * S, 8 * S, 2 * S); ctx.fill();
-        ctx.fillStyle = '#3a3a3a';
-        ctx.fillRect(14 * S, 2 * S, 8 * S, 6 * S);
-        ctx.fillStyle = '#111';
-        ctx.fillRect(38 * S, 2 * S, 4 * S, 8 * S);
-        // Hand under gun
-        ctx.fillStyle = pl.color; ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(16 * S, 9 * S, 5 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.fillRect(-15, b.h/2 - 25, 30, 25);
+        
+        // Windows
+        ctx.fillStyle = '#87ceeb';
+        ctx.fillRect(-b.w/2 + 15, -b.h/2 + 15, 20, 20);
+        ctx.fillRect(b.w/2 - 35, -b.h/2 + 15, 20, 20);
+        
         ctx.restore();
       });
 
-      // Update and draw bullets
-      bullets = bullets.filter(b => {
-        b.x += b.vx; b.y += b.vy; b.life--;
-        if (b.life <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H) return false;
-
-        let hit = false;
-        demoPlayers.forEach(pl => {
-          if (Math.sqrt((pl.x - b.x) ** 2 + (pl.y - b.y) ** 2) < 16 * S) {
-            spawnHit(b.x, b.y, '#ef4444');
-            hit = true;
+      // Draw environment objects (sorted by y for depth)
+      envObjects.sort((a, b) => a.y - b.y);
+      envObjects.forEach(obj => {
+        const cx = obj.x * W, cy = obj.y * H;
+        const size = obj.size;
+        
+        ctx.save(); ctx.translate(cx, cy);
+        
+        if (obj.type === 'tree') {
+          // Trunk
+          ctx.fillStyle = '#2c1810';
+          ctx.beginPath(); ctx.arc(0, 5, size * 0.12, 0, Math.PI * 2); ctx.fill();
+          // Foliage
+          const g0 = treeGreens[obj.seed % treeGreens.length];
+          const g1 = treeGreens[(obj.seed + 2) % treeGreens.length];
+          const g2 = treeGreens[(obj.seed + 4) % treeGreens.length];
+          ctx.fillStyle = g1; ctx.beginPath(); ctx.arc(-size * 0.28, size * 0.1, size * 0.58, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(size * 0.28, size * 0.1, size * 0.58, 0, Math.PI * 2); ctx.fill();
+          ctx.fillStyle = g0; ctx.beginPath(); ctx.arc(0, -size * 0.12, size * 0.72, 0, Math.PI * 2); ctx.fill();
+        } else if (obj.type === 'rock') {
+          ctx.fillStyle = rockGreys[obj.seed % rockGreys.length];
+          ctx.beginPath();
+          ctx.ellipse(0, 0, size, size * 0.7, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#2a2a2a';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+        } else if (obj.type === 'bush') {
+          ctx.fillStyle = '#2d4a2d';
+          ctx.beginPath(); ctx.arc(0, 0, size * 0.5, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(-size * 0.2, -size * 0.2, size * 0.4, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(size * 0.2, -size * 0.15, size * 0.35, 0, Math.PI * 2); ctx.fill();
+        } else if (obj.type === 'crate') {
+          ctx.fillStyle = obj.isGold ? '#92400e' : '#78350f';
+          ctx.strokeStyle = obj.isGold ? '#eab308' : '#451a03';
+          ctx.lineWidth = 4;
+          ctx.fillRect(-size, -size, size * 2, size * 2);
+          ctx.strokeRect(-size, -size, size * 2, size * 2);
+          if (obj.isGold) {
+            ctx.fillStyle = '#eab308';
+            ctx.font = `bold ${size}px sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('★', 0, 0);
+          } else {
+            ctx.strokeStyle = '#451a03';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(-size, -size); ctx.lineTo(size, size); ctx.stroke();
           }
-        });
-        if (hit) return false;
-
-        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(Math.atan2(b.vy, b.vx));
-        const g = ctx.createLinearGradient(-11, 0, 4, 0);
-        g.addColorStop(0, 'rgba(255,180,0,0)');
-        g.addColorStop(0.6, 'rgba(255,220,80,0.75)');
-        g.addColorStop(1, 'rgba(255,255,200,1)');
-        ctx.fillStyle = g;
-        ctx.beginPath(); ctx.ellipse(0, 0, 7, 2, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = 'rgba(255,255,255,0.9)';
-        ctx.beginPath(); ctx.ellipse(2, 0, 2.5, 1, 0, 0, Math.PI * 2); ctx.fill();
-        ctx.restore();
-        return true;
-      });
-
-      // Update and draw particles
-      particles = particles.filter(pt => {
-        pt.x += pt.vx; pt.y += pt.vy;
-        pt.vx *= 0.9; pt.vy *= 0.9; pt.life--;
-        ctx.globalAlpha = Math.max(0, pt.life / pt.maxLife);
-        ctx.fillStyle = pt.color;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2); ctx.fill();
-        ctx.globalAlpha = 1;
-        return pt.life > 0;
-      });
-
-      // Tree foliage — drawn over players for depth
-      trees.forEach(t => {
-        const tx = t.fx * W, ty = t.fy * H;
-        ctx.save(); ctx.translate(tx, ty);
-        const g0 = treeGreens[t.seed % treeGreens.length];
-        const g1 = treeGreens[(t.seed + 2) % treeGreens.length];
-        const g2 = treeGreens[(t.seed + 4) % treeGreens.length];
-        const r = t.r;
-        ctx.fillStyle = g1; ctx.beginPath(); ctx.arc(-r * 0.28, r * 0.1, r * 0.58, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = g2; ctx.beginPath(); ctx.arc(r * 0.28, r * 0.1, r * 0.58, 0, Math.PI * 2); ctx.fill();
-        ctx.fillStyle = g0; ctx.beginPath(); ctx.arc(0, -r * 0.12, r * 0.72, 0, Math.PI * 2); ctx.fill();
+        } else if (obj.type === 'barrel') {
+          ctx.fillStyle = '#4a2a10';
+          ctx.beginPath(); ctx.ellipse(0, 0, size * 0.8, size, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#2a1a0a';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.fillStyle = '#3a2010';
+          ctx.fillRect(-size * 0.7, -size * 0.3, size * 1.4, 4);
+          ctx.fillRect(-size * 0.7, size * 0.1, size * 1.4, 4);
+        }
+        
         ctx.restore();
       });
 
       // Dark vignette around edges
-      const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.28, W / 2, H / 2, Math.min(W, H) * 0.78);
+      const vig = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.25, W / 2, H / 2, Math.min(W, H) * 0.75);
       vig.addColorStop(0, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, 'rgba(0,0,0,0.72)');
+      vig.addColorStop(1, 'rgba(0,0,0,0.75)');
       ctx.fillStyle = vig;
       ctx.fillRect(0, 0, W, H);
-
-      rafId = requestAnimationFrame(loop);
     };
 
-    loop();
+    render();
     return () => {
-      cancelAnimationFrame(rafId);
       window.removeEventListener('resize', onResize);
     };
   }, []);
@@ -1093,17 +1032,18 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
                 background: selectedSkin, filter: 'blur(50px)', opacity: 0.45, transform: 'scale(1.3)',
               }} />
               <svg width="200" height="200" viewBox="-50 -50 100 100" style={{ position: 'relative' }}>
+                {/* Gun image - AR */}
+                <image href={topDownARUrl} x="5" y="-18" width="46" height="30" transform="rotate(90, 28, -3)" />
+                {/* Hands */}
+                <circle cx="20" cy="9" r="6" fill={selectedSkin} stroke="#333" strokeWidth="1.5" />
+                <circle cx="29" cy="-2" r="5.5" fill={selectedSkin} stroke="#333" strokeWidth="1.5" />
                 {/* Body */}
                 <circle cx="0" cy="0" r="18" fill={selectedSkin} stroke="#333" strokeWidth="2" />
+                {/* Head */}
+                <circle cx="10" cy="-13" r="6" fill={selectedSkin} stroke="#333" strokeWidth="1.5" />
                 {/* Eyes */}
                 <circle cx="10" cy="-6" r="2.5" fill="#000" />
                 <circle cx="10" cy="6" r="2.5" fill="#000" />
-                {/* AR Gun - rifle style */}
-                <rect x="16" y="-2" width="32" height="8" rx="1" fill="#1a1a1a" />
-                <rect x="18" y="-1" width="8" height="6" fill="#3a3a3a" />
-                <rect x="44" y="-2" width="4" height="8" fill="#111" />
-                {/* Hand under gun */}
-                <circle cx="20" cy="8" r="5" fill={selectedSkin} stroke="#2a2a2a" strokeWidth="1.5" />
               </svg>
             </div>
             <p className="text-white font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]">{username}</p>
