@@ -940,8 +940,6 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         // Draw player
         ctx.save(); ctx.translate(pl.x, pl.y); ctx.rotate(pl.rot);
         ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1.5;
-        // Gun
-        ctx.fillStyle = '#2a2a2a'; ctx.fillRect(10 * S, 2 * S, 22 * S, 7 * S);
         // Body
         ctx.fillStyle = pl.color;
         ctx.beginPath(); ctx.arc(0, 0, 16 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
@@ -952,9 +950,16 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         ctx.fillStyle = '#000';
         ctx.beginPath(); ctx.arc(9 * S, -5 * S, 2 * S, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(9 * S, 4 * S, 2 * S, 0, Math.PI * 2); ctx.fill();
-        // Hand
+        // AR Gun - rifle style
+        ctx.fillStyle = '#1a1a1a';
+        ctx.beginPath(); ctx.roundRect(12 * S, 1 * S, 30 * S, 8 * S, 2 * S); ctx.fill();
+        ctx.fillStyle = '#3a3a3a';
+        ctx.fillRect(14 * S, 2 * S, 8 * S, 6 * S);
+        ctx.fillStyle = '#111';
+        ctx.fillRect(38 * S, 2 * S, 4 * S, 8 * S);
+        // Hand under gun
         ctx.fillStyle = pl.color; ctx.strokeStyle = '#2a2a2a'; ctx.lineWidth = 1.2;
-        ctx.beginPath(); ctx.arc(14 * S, 6 * S, 5 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.arc(16 * S, 9 * S, 5 * S, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
         ctx.restore();
       });
 
@@ -1088,15 +1093,17 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
                 background: selectedSkin, filter: 'blur(50px)', opacity: 0.45, transform: 'scale(1.3)',
               }} />
               <svg width="200" height="200" viewBox="-50 -50 100 100" style={{ position: 'relative' }}>
-                {/* Gun */}
-                <rect x="18" y="-4" width="28" height="10" rx="2" fill="#2a2a2a" />
                 {/* Body */}
                 <circle cx="0" cy="0" r="18" fill={selectedSkin} stroke="#333" strokeWidth="2" />
                 {/* Eyes */}
                 <circle cx="10" cy="-6" r="2.5" fill="#000" />
                 <circle cx="10" cy="6" r="2.5" fill="#000" />
-                {/* Hand */}
-                <circle cx="14" cy="6" r="5" fill={selectedSkin} stroke="#2a2a2a" strokeWidth="1.5" />
+                {/* AR Gun - rifle style */}
+                <rect x="16" y="-2" width="32" height="8" rx="1" fill="#1a1a1a" />
+                <rect x="18" y="-1" width="8" height="6" fill="#3a3a3a" />
+                <rect x="44" y="-2" width="4" height="8" fill="#111" />
+                {/* Hand under gun */}
+                <circle cx="20" cy="8" r="5" fill={selectedSkin} stroke="#2a2a2a" strokeWidth="1.5" />
               </svg>
             </div>
             <p className="text-white font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]">{username}</p>
@@ -1217,47 +1224,59 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
           {/* Main Content Area */}
           <div className="flex-1 flex items-center justify-center p-8">
-            <div className="bg-white rounded-3xl w-[900px] h-[500px] flex flex-col p-8 shadow-2xl">
+            <div className="bg-gray-800 rounded-3xl w-[900px] h-[500px] flex flex-col p-8 shadow-2xl">
               
               {/* 3 Cards */}
               <div className="flex-1 flex gap-6">
                 {/* Card 1 - Loot */}
-                <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
-                  <div className="flex flex-col items-center gap-1">
+                <div className="flex-1 bg-gray-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                  <div className="flex flex-col items-center gap-2">
                     {/* Supply Crate */}
-                    <div className="w-14 h-14 bg-blue-500 rounded-lg flex items-center justify-center shadow-lg">
-                      <span className="text-white text-xs font-bold">SUPPLY</span>
-                    </div>
+                    <svg width="48" height="48" viewBox="-28 -28 56 56">
+                      <rect x="-28" y="-28" width="56" height="56" fill="#1e3a5f" />
+                      <rect x="-28" y="-28" width="56" height="56" fill="none" stroke="#3b82f6" strokeWidth="4" />
+                      <line x1="-28" y1="0" x2="28" y2="0" stroke="#60a5fa" strokeWidth="1.5" />
+                      <line x1="0" y1="-28" x2="0" y2="28" stroke="#60a5fa" strokeWidth="1.5" />
+                      <text x="0" y="2" textAnchor="middle" fill="#eab308" fontSize="20" fontWeight="bold">★</text>
+                    </svg>
                     {/* Normal + Golden */}
-                    <div className="flex gap-1">
-                      <div className="w-12 h-12 bg-amber-700 rounded-lg flex items-center justify-center shadow-md">
-                        <span className="text-white text-xs font-bold">NORM</span>
-                      </div>
-                      <div className="w-12 h-12 bg-yellow-500 rounded-lg flex items-center justify-center shadow-md border-2 border-yellow-300">
-                        <span className="text-white text-xs font-bold">GOLD</span>
-                      </div>
+                    <div className="flex gap-2">
+                      {/* Normal Crate */}
+                      <svg width="40" height="40" viewBox="-28 -28 56 56">
+                        <rect x="-28" y="-28" width="56" height="56" fill="#78350f" />
+                        <rect x="-28" y="-28" width="56" height="56" fill="none" stroke="#451a03" strokeWidth="4" />
+                        <line x1="-28" y1="-28" x2="28" y2="28" stroke="#451a03" strokeWidth="2" />
+                      </svg>
+                      {/* Gold Crate */}
+                      <svg width="40" height="40" viewBox="-28 -28 56 56">
+                        <rect x="-28" y="-28" width="56" height="56" fill="#92400e" />
+                        <rect x="-28" y="-28" width="56" height="56" fill="none" stroke="#eab308" strokeWidth="4" />
+                        <line x1="-28" y1="0" x2="28" y2="0" stroke="#ca8a04" strokeWidth="2" />
+                        <line x1="0" y1="-28" x2="0" y2="28" stroke="#ca8a04" strokeWidth="2" />
+                        <text x="0" y="2" textAnchor="middle" fill="#eab308" fontSize="16" fontWeight="bold">★</text>
+                      </svg>
                     </div>
                   </div>
-                  <div className="text-black font-bold text-lg">LOOT</div>
-                  <div className="text-gray-600 text-sm text-center px-2">
+                  <div className="text-gray-900 font-bold text-lg">LOOT</div>
+                  <div className="text-gray-700 text-sm text-center px-2">
                     Destroy crates to earn loot, some better than others.
                   </div>
                 </div>
 
                 {/* Card 2 - Storm */}
-                <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                <div className="flex-1 bg-gray-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
                   <div className="text-6xl">⛈️</div>
-                  <div className="text-black font-bold text-lg">STORM</div>
-                  <div className="text-gray-600 text-sm text-center px-2">
+                  <div className="text-gray-900 font-bold text-lg">STORM</div>
+                  <div className="text-gray-700 text-sm text-center px-2">
                     2 minutes to loot, 1 minute off and on storms getting smaller everytime.
                   </div>
                 </div>
 
                 {/* Card 3 - Win */}
-                <div className="flex-1 bg-gradient-to-b from-gray-100 to-gray-200 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
+                <div className="flex-1 bg-gray-300 rounded-2xl p-4 flex flex-col items-center justify-center gap-3">
                   <div className="text-6xl">🏆</div>
-                  <div className="text-black font-bold text-lg">WIN</div>
-                  <div className="text-gray-600 text-sm text-center px-2">
+                  <div className="text-gray-900 font-bold text-lg">WIN</div>
+                  <div className="text-gray-700 text-sm text-center px-2">
                     Kill all players and be last standing to win.
                   </div>
                 </div>
@@ -1292,7 +1311,7 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
         </div>
 
         {/* Menu panel */}
-        <div className="bg-black/55 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_32px_80px_rgba(0,0,0,0.6)] w-[440px] overflow-hidden">
+        <div className="bg-black/55 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_32px_80px_rgba(0,0,0,0.6)] w-[440px]">
 
           {menuState === 'main' && (
             <div className="p-3 flex flex-col gap-2">
@@ -1303,14 +1322,18 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
                 >
                   VERDANT PASS
                 </button>
-                <div className="absolute -right-36 top-1/2 -translate-y-1/2">
-                  <div className="relative">
-                    <div className="bg-white text-black text-xs font-bold px-3 py-2 rounded-2xl rounded-tl-none shadow-lg whitespace-nowrap">
-                      Season 1 Pass Coming Soon!
-                    </div>
+                <div className="absolute -right-44 top-1/2 -translate-y-1/2 z-50">
+                  <div className="bg-white text-black text-xs font-bold px-3 py-2 rounded-2xl rounded-tl-none shadow-lg whitespace-nowrap">
+                    Season 1 Pass Coming Soon!
                   </div>
                 </div>
               </div>
+              <button
+                onClick={() => setMenuState('customize')}
+                className="w-full px-8 py-4 bg-white/4 text-white/60 font-black text-lg rounded-2xl border border-white/8 hover:bg-white/10 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
+              >
+                CUSTOMIZE
+              </button>
               <button
                 onClick={() => setMenuState('create')}
                 className="w-full px-8 py-4 bg-white text-black font-black text-lg rounded-2xl hover:bg-green-400 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-lg"
@@ -1328,12 +1351,6 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
                 className="w-full px-8 py-4 bg-white/4 text-white/60 font-black text-lg rounded-2xl border border-white/8 hover:bg-white/10 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
               >
                 TUTORIAL
-              </button>
-              <button
-                onClick={() => setMenuState('customize')}
-                className="w-full px-8 py-4 bg-white/4 text-white/60 font-black text-lg rounded-2xl border border-white/8 hover:bg-white/10 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150"
-              >
-                CUSTOMIZE
               </button>
             </div>
           )}
