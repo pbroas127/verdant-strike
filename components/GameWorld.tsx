@@ -75,6 +75,7 @@ const PLAYER_SPEED = 5.5;
 const PUNCH_COOLDOWN = 12;
 const BULLET_SPEED = 16;
 const PICKUP_RANGE = 70;
+const PICKUP_RANGE_SQ = PICKUP_RANGE * PICKUP_RANGE;
 const SHOOT_COOLDOWN = 400;
 const AR_SHOOT_COOLDOWN = 100;
 const AR_AUTO_COOLDOWN = 100;
@@ -113,6 +114,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const topDownPistolImgRef = useRef<HTMLImageElement | null>(null);
   const topDownARImgRef = useRef<HTMLImageElement | null>(null);
   const topDownShotgunImgRef = useRef<HTMLImageElement | null>(null);
+  const bulletGradientRef = useRef<CanvasGradient | null>(null);
   const keys = useRef<Record<string, boolean>>({});
   const mousePos = useRef({ x: 0, y: 0 });
   const lastShootTime = useRef(0);
@@ -127,6 +129,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const lastGrenadeTime = useRef(0);
   const throwModeRef = useRef(false);
   const mouseDownRef = useRef(false);
+  const fpsRef = useRef({ frames: 0, lastTime: performance.now(), current: 60 });
+  const uiUpdateCounterRef = useRef(0);
 
   // Core immutable IDs — derived from props (stable for component lifetime)
   const localId = playerId ?? (isHost ? 'p0' : 'p1');
@@ -259,7 +263,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   }, []);
 
   const spawnParticles = (x: number, y: number, color: string, count: number, type: 'wood' | 'leaf' | 'stone' | 'metal' | 'blood' | 'water') => {
-    for (let i = 0; i < count; i++) {
+    // Cap total particles to prevent performance issues
+    const MAX_PARTICLES = 200;
+    if (stateRef.current.particles.length >= MAX_PARTICLES) return;
+    const actualCount = Math.min(count, MAX_PARTICLES - stateRef.current.particles.length);
+    for (let i = 0; i < actualCount; i++) {
       stateRef.current.particles.push({
         id: Math.random().toString(),
         x, y,
@@ -340,8 +348,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5,
           });
         });
-        spawnParticles(crate.x, crate.y, '#3b82f6', 16, 'stone');
-        safeSend({ type: 'STATE_UPDATE', state: { crates: s.crates, items: s.items }, particleEvents: [{ x: crate.x, y: crate.y, color: '#3b82f6', count: 16 }] });
+        spawnParticles(crate.x, crate.y, '#3b82f6', 10, 'stone');
+        safeSend({ type: 'STATE_UPDATE', state: { crates: s.crates, items: s.items }, particleEvents: [{ x: crate.x, y: crate.y, color: '#3b82f6', count: 10 }] });
         return;
       }
 
@@ -638,7 +646,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     const hx = p.x + Math.cos(angle) * 45;
     const hy = p.y + Math.sin(angle) * 45;
     // Increased detection radius for punching crates
-    const hc = s.crates.find(c => Math.sqrt((c.x - hx) ** 2 + (c.y - hy) ** 2) < 55);
+    const hc = s.crates.find(c => (c.x - hx) ** 2 + (c.y - hy) ** 2 < 3025);
 
     if (hc) {
       handleCrateHit(hc.id);
@@ -647,7 +655,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       for (const rid of remoteIds) {
         const remote = s.players[rid];
         if (remote && remote.health > 0) {
-          if (Math.sqrt((remote.x - hx) ** 2 + (remote.y - hy) ** 2) < 55) {
+          if ((remote.x - hx) ** 2 + (remote.y - hy) ** 2 < 3025) {
             safeSend({ type: 'PLAYER_HIT', targetId: rid, damage: 5, attackerId: p.id });
             break;
           }
@@ -897,21 +905,21 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             if (Math.abs(envObj.x - p.x) < hw && Math.abs(envObj.y - ny) < hh) cy = false;
           } else {
             const br = ('type' in obj ? (obj.type === 'tree' ? (obj as EnvObject).size * 0.38 : obj.type === 'rock' ? ((obj as EnvObject).size * 0.6) : obj.type.includes('wall') ? 30 : 45) : 45) + PLAYER_RADIUS;
-            if (Math.sqrt((obj.x - nx) ** 2 + (obj.y - p.y) ** 2) < br) cx = false;
-            if (Math.sqrt((obj.x - p.x) ** 2 + (obj.y - ny) ** 2) < br) cy = false;
+            if ((obj.x - nx) ** 2 + (obj.y - p.y) ** 2 < br * br) cx = false;
+            if ((obj.x - p.x) ** 2 + (obj.y - ny) ** 2 < br * br) cy = false;
           }
         });
         // Sandbag barrier collision
         s.sandbagBarriers.forEach(sb => {
           const br = 30 + PLAYER_RADIUS;
-          if (Math.sqrt((sb.x - nx) ** 2 + (sb.y - p.y) ** 2) < br) cx = false;
-          if (Math.sqrt((sb.x - p.x) ** 2 + (sb.y - ny) ** 2) < br) cy = false;
+        if ((sb.x - nx) ** 2 + (sb.y - p.y) ** 2 < br * br) cx = false;
+        if ((sb.x - p.x) ** 2 + (sb.y - ny) ** 2 < br * br) cy = false;
         });
         // Barrel collision
         s.barrels.forEach(barrel => {
           const br = 18 + PLAYER_RADIUS;
-          if (Math.sqrt((barrel.x - nx) ** 2 + (barrel.y - p.y) ** 2) < br) cx = false;
-          if (Math.sqrt((barrel.x - p.x) ** 2 + (barrel.y - ny) ** 2) < br) cy = false;
+        if ((barrel.x - nx) ** 2 + (barrel.y - p.y) ** 2 < br * br) cx = false;
+        if ((barrel.x - p.x) ** 2 + (barrel.y - ny) ** 2 < br * br) cy = false;
         });
         if (cx) p.x = Math.max(20, Math.min(worldSize - 20, nx));
         if (cy) p.y = Math.max(20, Math.min(worldSize - 20, ny));
@@ -934,7 +942,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     if (p.punchCooldown > 0) p.punchCooldown--; else p.isPunching = false;
 
     // Frequent sync
-    if (frameCount.current % 2 === 0) {
+    if (frameCount.current % 3 === 0) {
       safeSend({ type: 'PLAYER_SYNC', player: p });
     }
 
@@ -1037,7 +1045,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
 
     // Storm Damage — during closing and holding phases
     if (p.health > 0 && (storm.phase === 'holding' || storm.phase === 'closing') &&
-      Math.sqrt((p.x - storm.x) ** 2 + (p.y - storm.y) ** 2) > storm.radius) {
+      (p.x - storm.x) ** 2 + (p.y - storm.y) ** 2 > storm.radius * storm.radius) {
       if (Date.now() - lastStormTick.current > 1000) {
         lastStormTick.current = Date.now();
         p.health = Math.max(0, p.health - STORM_DAMAGE);
@@ -1102,7 +1110,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       if (!hit && b.ownerId === p.id) {
         for (const rid of remoteIds) {
           const remote = s.players[rid];
-          if (remote && remote.health > 0 && Math.sqrt((remote.x - nx) ** 2 + (remote.y - ny) ** 2) < 25) {
+          if (remote && remote.health > 0 && (remote.x - nx) ** 2 + (remote.y - ny) ** 2 < 625) {
             hit = true;
             p.shotsHit = (p.shotsHit || 0) + 1;
             p.damageDealt = (p.damageDealt || 0) + b.damage;
@@ -1112,7 +1120,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
 
       // Bullet vs Local Player
-      if (!hit && p.health > 0 && b.ownerId !== p.id && Math.sqrt((p.x - nx) ** 2 + (p.y - ny) ** 2) < 25) {
+      if (!hit && p.health > 0 && b.ownerId !== p.id && (p.x - nx) ** 2 + (p.y - ny) ** 2 < 625) {
         hit = true;
         let finalDmg = b.damage;
         if (p.armorHealth > 0) {
@@ -1139,7 +1147,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
 
       // Bullet vs Environment
       s.crates.forEach(c => {
-        if (!hit && Math.sqrt((c.x - nx) ** 2 + (c.y - ny) ** 2) < 45) {
+        if (!hit && (c.x - nx) ** 2 + (c.y - ny) ** 2 < 2025) {
           hit = true;
           if (isHost) handleCrateHit(c.id);
         }
@@ -1152,7 +1160,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             // AABB for rectangular long walls
             wallHit = Math.abs(w.x - nx) < w.w / 2 + 4 && Math.abs(w.y - ny) < w.h / 2 + 4;
           } else {
-            wallHit = Math.sqrt((w.x - nx) ** 2 + (w.y - ny) ** 2) < 30;
+            wallHit = (w.x - nx) ** 2 + (w.y - ny) ** 2 < 900;
           }
           if (wallHit) {
             hit = true;
@@ -1183,7 +1191,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       // Bullet vs Rocks
       if (!hit) {
         s.envObjects.filter(o => o.type === 'rock').forEach(rock => {
-          if (!hit && Math.sqrt((rock.x - nx) ** 2 + (rock.y - ny) ** 2) < rock.size * 0.6) {
+          if (!hit && (rock.x - nx) ** 2 + (rock.y - ny) ** 2 < (rock.size * 0.6) * (rock.size * 0.6)) {
             hit = true;
             spawnParticles(nx, ny, '#94a3b8', 5, 'stone');
           }
@@ -1192,7 +1200,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       // Bullet vs Sandbag barriers
       if (!hit) {
         s.sandbagBarriers.forEach(sb => {
-          if (!hit && Math.sqrt((sb.x - nx) ** 2 + (sb.y - ny) ** 2) < 30) {
+          if (!hit && (sb.x - nx) ** 2 + (sb.y - ny) ** 2 < 900) {
             hit = true;
             spawnParticles(nx, ny, '#c4a060', 4, 'stone');
           }
@@ -1201,7 +1209,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       // Bullet vs Barrels
       if (!hit) {
         s.barrels.forEach(barrel => {
-          if (!hit && Math.sqrt((barrel.x - nx) ** 2 + (barrel.y - ny) ** 2) < 20) {
+          if (!hit && (barrel.x - nx) ** 2 + (barrel.y - ny) ** 2 < 400) {
             hit = true;
             spawnParticles(nx, ny, '#ff6600', 6, 'stone');
             if (isHost) handleBarrelHit(barrel.id);
@@ -1277,9 +1285,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
           } else if (g.isMolotov) {
             s.fireZones.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 180, life: 600, maxLife: 600 });
-            spawnParticles(g.x, g.y, '#ff4400', 20, 'stone');
-            spawnParticles(g.x, g.y, '#ff8800', 15, 'stone');
-            safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones } });
+            safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones }, particleEvents: [{ x: g.x, y: g.y, color: '#ff6600', count: 25 }] });
           } else {
             const GREN_RADIUS = 220;
             (Object.values(s.players) as Player[]).forEach(pl => {
@@ -1350,10 +1356,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones } });
     }
 
-    // Item Proximity
-    const dists = s.items.map(i => Math.sqrt((i.x - p.x) ** 2 + (i.y - p.y) ** 2));
-    const closeIdx = dists.findIndex(d => d < PICKUP_RANGE);
-    const foundItem = closeIdx !== -1 ? s.items[closeIdx] : null;
+    // Item Proximity - using squared distance to avoid Math.sqrt
+    let foundItem: Item | null = null;
+    for (const i of s.items) {
+      if ((i.x - p.x) ** 2 + (i.y - p.y) ** 2 < PICKUP_RANGE_SQ) {
+        foundItem = i;
+        break;
+      }
+    }
     nearbyItemRef.current = foundItem;
     setNearbyItem(foundItem);
 
@@ -1378,8 +1388,19 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       i.y = Math.max(50, Math.min(worldSize - 50, i.y));
     });
 
-    setUiState({ ...s });
-    frameCount.current++;
+    fpsRef.current.frames++;
+    const nowFps = performance.now();
+    if (nowFps - fpsRef.current.lastTime >= 1000) {
+      fpsRef.current.current = fpsRef.current.frames;
+      fpsRef.current.frames = 0;
+      fpsRef.current.lastTime = nowFps;
+    }
+
+    uiUpdateCounterRef.current++;
+    if (uiUpdateCounterRef.current >= 2) {
+      uiUpdateCounterRef.current = 0;
+      setUiState({ ...s });
+    }
   }, [isHost, handleCrateHit, handleBarrelHit, localId, shoot]);
 
   useEffect(() => {
@@ -1970,7 +1991,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       ctx.save(); ctx.setTransform(1, 0, 0, 1, 0, 0);
       ctx.beginPath(); ctx.rect(0, 0, cv.width, cv.height); ctx.arc(sX, sY, Math.max(0, sR), 0, Math.PI * 2, true);
       ctx.fillStyle = stormColor; ctx.fill();
-      if (isActiveStorm && Math.sqrt((p.x - s.storm.x) ** 2 + (p.y - s.storm.y) ** 2) > sR) {
+      if (isActiveStorm && (p.x - s.storm.x) ** 2 + (p.y - s.storm.y) ** 2 > sR * sR) {
         ctx.fillStyle = 'rgba(239, 68, 68, 0.18)'; ctx.fillRect(0, 0, cv.width, cv.height);
       }
       ctx.restore();
@@ -2048,6 +2069,18 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.font = 'bold 16px sans-serif'; ctx.textAlign = 'center';
         ctx.fillText(s.ammoAlert, 0, 0); ctx.restore();
       }
+
+      // FPS Counter - top right
+      const fpsColor = fpsRef.current.current >= 55 ? '#22c55e' : fpsRef.current.current >= 30 ? '#eab308' : '#ef4444';
+      ctx.save();
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.fillStyle = 'rgba(0,0,0,0.5)';
+      ctx.fillRect(cv.width - 90, 8, 82, 28);
+      ctx.fillStyle = fpsColor;
+      ctx.font = 'bold 16px monospace';
+      ctx.textAlign = 'right';
+      ctx.fillText(`FPS: ${fpsRef.current.current}`, cv.width - 16, 28);
+      ctx.restore();
 
       // Smoke Clouds - rendered last (on top of everything)
       s.smokeClouds.forEach(cloud => {
