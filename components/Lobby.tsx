@@ -1126,47 +1126,49 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
         {/* Level Grid */}
         <div className="flex-1 flex items-center justify-center">
-          <div className="flex flex-col items-center gap-6">
-            {/* 5 Levels */}
-            <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-2">
+            {/* Left Arrow */}
+            {passPage > 0 && (
+              <button
+                onClick={() => setPassPage(passPage - 1)}
+                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 text-white font-black text-xl hover:bg-white/20 hover:scale-110 transition-all flex items-center justify-center mr-4"
+              >
+                ←
+              </button>
+            )}
+
+            {/* 5 Cards horizontally connected */}
+            <div className="flex items-center gap-0">
               {[0,1,2,3,4].map((i) => {
                 const levelNum = passPage * 5 + i + 1;
                 return (
-                  <div
-                    key={levelNum}
-                    className="w-80 h-20 rounded-2xl border-2 border-white/20 bg-white/5 flex items-center px-6 gap-4 relative overflow-hidden"
-                  >
-                    <div className="absolute inset-0 bg-gradient-to-r from-green-900/20 to-transparent" />
-                    <div className="text-white/20 font-black text-4xl italic">{levelNum}</div>
-                    <div className="flex-1">
-                      <div className="text-white/30 text-xs font-bold tracking-widest uppercase">LOCKED</div>
-                      <div className="text-white/50 text-sm">Reward Unavailable</div>
+                  <div key={levelNum} className="flex items-center">
+                    {/* Card */}
+                    <div className="w-28 h-40 rounded-xl border-2 border-white/25 bg-gradient-to-b from-white/10 to-white/5 flex flex-col items-center justify-center gap-2 relative overflow-hidden shadow-lg">
+                      <div className="text-white/60 font-black text-5xl italic">{levelNum}</div>
+                      <svg className="w-8 h-8 text-white/40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" />
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                      </svg>
                     </div>
-                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
-                      <div className="w-6 h-6 rounded-full border-2 border-white/20" />
-                    </div>
+                    {/* Connector Line */}
+                    {i < 4 && (
+                      <div className="w-8 h-1 bg-white/20" />
+                    )}
                   </div>
                 );
               })}
             </div>
 
-            {/* Navigation Arrows */}
-            <div className="flex items-center gap-16 mt-4">
-              {passPage > 0 && (
-                <button
-                  onClick={() => setPassPage(passPage - 1)}
-                  className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white font-black text-2xl hover:bg-white/20 hover:scale-110 transition-all flex items-center justify-center"
-                >
-                  ←
-                </button>
-              )}
+            {/* Right Arrow */}
+            {passPage < 9 && (
               <button
                 onClick={() => setPassPage(passPage + 1)}
-                className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white font-black text-2xl hover:bg-white/20 hover:scale-110 transition-all flex items-center justify-center"
+                className="w-12 h-12 rounded-full bg-white/10 border border-white/20 text-white font-black text-xl hover:bg-white/20 hover:scale-110 transition-all flex items-center justify-center ml-4"
               >
                 →
               </button>
-            </div>
+            )}
           </div>
         </div>
 
