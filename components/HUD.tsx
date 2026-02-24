@@ -6,6 +6,14 @@ import arLogoUrl from '../Assets/ARlogo.png';
 import shotgunLogoUrl from '../Assets/Shotgunlogo.png';
 import grenadeLogoUrl from '../Assets/Grenadelogo.png';
 import smokeLogoUrl from '../Assets/Smokelogo.png';
+import molotovLogoUrl from '../Assets/Molotovlogo.png';
+import bandAidLogoUrl from '../Assets/BandAidlogo.png';
+import medKitLogoUrl from '../Assets/MedKitlogo.png';
+import healPotionLogoUrl from '../Assets/HealPotionlogo.png';
+import healShotLogoUrl from '../Assets/HealShotlogo.png';
+import armorLogoUrl from '../Assets/Armorlogo.png';
+import ammoCrateLogoUrl from '../Assets/AmmoCratelogo.png';
+import goldenWrapLogoUrl from '../Assets/GoldenWraplogo.png';
 
 interface HUDProps {
   player: Player;
@@ -83,15 +91,31 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
     if (item.type === 'smoke_grenade') {
       return <img src={smokeLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
-    const emojiSize = size === 'sm' ? 'text-2xl' : 'text-5xl';
-    const emoji = item.type === 'armor' ? '🛡️'
-      : item.type === 'band_aid' ? '🩹'
-      : item.type === 'medkit' ? '🎒'
-      : item.type === 'heal_potion' ? '🧪'
-      : item.type === 'heal_shot' ? '💉'
-      : item.type === 'golden_wrap' ? '🩹'
-      : '📦';
-    return <span className={`${emojiSize} drop-shadow-md brightness-150`}>{emoji}</span>;
+    if (item.type === 'molotov') {
+      return <img src={molotovLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'band_aid') {
+      return <img src={bandAidLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'medkit') {
+      return <img src={medKitLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'heal_potion') {
+      return <img src={healPotionLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'heal_shot') {
+      return <img src={healShotLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'armor') {
+      return <img src={armorLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'ammo_crate') {
+      return <img src={ammoCrateLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    if (item.type === 'golden_wrap') {
+      return <img src={goldenWrapLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+    }
+    return null;
   };
 
   return (
@@ -270,8 +294,8 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
           {(currentItem?.type === 'grenade' || currentItem?.type === 'smoke_grenade') && (
             <div className={`${isThrowModeActive ? 'bg-red-500/90 animate-pulse' : 'bg-green-500/90 animate-bounce'} text-white px-3 py-1 rounded-full text-[10px] font-black shadow-lg`}>
               {isThrowModeActive
-                ? 'LEFT CLICK TO THROW · RIGHT CLICK CANCEL'
-                : `PRESS E TO AIM ${currentItem.name.toUpperCase()}`}
+                ? 'LEFT CLICK OR F TO THROW · F TO CANCEL'
+                : `PRESS F TO AIM ${currentItem.name.toUpperCase()}`}
             </div>
           )}
           <div className="flex gap-2 p-2 bg-black/40 backdrop-blur-md rounded-2xl border border-white/10 shadow-2xl pointer-events-auto">

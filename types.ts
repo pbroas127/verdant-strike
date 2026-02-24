@@ -1,7 +1,7 @@
 
 export type Rarity = 'common' | 'uncommon' | 'rare' | 'epic' | 'legendary';
 
-export type ItemType = 'pistol' | 'assault_rifle' | 'shotgun' | 'grenade' | 'smoke_grenade' | 'band_aid' | 'medkit' | 'heal_potion' | 'heal_shot' | 'golden_wrap' | 'armor' | 'ammo_crate';
+export type ItemType = 'pistol' | 'assault_rifle' | 'shotgun' | 'grenade' | 'smoke_grenade' | 'molotov' | 'band_aid' | 'medkit' | 'heal_potion' | 'heal_shot' | 'golden_wrap' | 'armor' | 'ammo_crate';
 
 export type EnvObjectType = 'tree' | 'bush' | 'rock' | 'stone_wall' | 'wood_wall' | 'metal_wall' | 'brick_wall' | 'mossy_stone_wall' | 'long_stone_wall' | 'long_wood_wall' | 'long_brick_wall' | 'long_mossy_wall';
 
@@ -117,6 +117,16 @@ export interface Grenade {
   fuseTimer: number;   // ticks down from 120 (~2s at 60fps)
   ownerId: string;
   isSmokeGrenade?: boolean;
+  isMolotov?: boolean;
+}
+
+export interface FireZone {
+  id: string;
+  x: number; y: number;
+  radius: number;
+  maxRadius: number;
+  life: number;
+  maxLife: number;
 }
 
 export interface SmokeCloud {
@@ -185,6 +195,7 @@ export interface GameState {
   stormCircle: number;
   grenades: Grenade[];
   smokeClouds: SmokeCloud[];
+  fireZones: FireZone[];
   barrels: Barrel[];
   sandbagBarriers: SandbagBarrier[];
 }

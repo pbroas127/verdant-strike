@@ -2,13 +2,21 @@
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import type { Session } from '@supabase/supabase-js';
 import { supabase } from '../lib/supabase';
-import { Player, Item, Bullet, GameState, WORLD_SIZE, Crate, EnvObject, WaterBody, Particle, ItemType, Rarity, RARITY_COLORS, StormState, NetworkMessage, Building, Campfire, Grenade, SmokeCloud, Barrel, SandbagBarrier } from '../types';
+import { Player, Item, Bullet, GameState, WORLD_SIZE, Crate, EnvObject, WaterBody, Particle, ItemType, Rarity, RARITY_COLORS, StormState, NetworkMessage, Building, Campfire, Grenade, SmokeCloud, FireZone, Barrel, SandbagBarrier } from '../types';
 import HUD from './HUD';
 import pistolLogoUrl from '../Assets/pistollogo.png';
 import arLogoUrl from '../Assets/ARlogo.png';
 import shotgunLogoUrl from '../Assets/Shotgunlogo.png';
 import grenadeLogoUrl from '../Assets/Grenadelogo.png';
 import smokeLogoUrl from '../Assets/Smokelogo.png';
+import molotovLogoUrl from '../Assets/Molotovlogo.png';
+import bandAidLogoUrl from '../Assets/BandAidlogo.png';
+import medKitLogoUrl from '../Assets/MedKitlogo.png';
+import healPotionLogoUrl from '../Assets/HealPotionlogo.png';
+import healShotLogoUrl from '../Assets/HealShotlogo.png';
+import armorLogoUrl from '../Assets/Armorlogo.png';
+import ammoCrateLogoUrl from '../Assets/AmmoCratelogo.png';
+import goldenWrapLogoUrl from '../Assets/GoldenWraplogo.png';
 import topDownPistolUrl from '../Assets/TopDownPistol.png';
 import topDownARUrl from '../Assets/TopDownAR.png';
 import topDownShotgunUrl from '../Assets/TopDownShotgun.png';
@@ -94,6 +102,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
   const shotgunLogoImgRef = useRef<HTMLImageElement | null>(null);
   const grenadeLogoImgRef = useRef<HTMLImageElement | null>(null);
   const smokeLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const molotovLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const bandAidLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const medKitLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const healPotionLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const healShotLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const armorLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const ammoCrateLogoImgRef = useRef<HTMLImageElement | null>(null);
+  const goldenWrapLogoImgRef = useRef<HTMLImageElement | null>(null);
   const topDownPistolImgRef = useRef<HTMLImageElement | null>(null);
   const topDownARImgRef = useRef<HTMLImageElement | null>(null);
   const topDownShotgunImgRef = useRef<HTMLImageElement | null>(null);
@@ -134,6 +150,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     const sg = new Image(); sg.src = shotgunLogoUrl; shotgunLogoImgRef.current = sg;
     const gl = new Image(); gl.src = grenadeLogoUrl; grenadeLogoImgRef.current = gl;
     const sl = new Image(); sl.src = smokeLogoUrl; smokeLogoImgRef.current = sl;
+    const ml = new Image(); ml.src = molotovLogoUrl; molotovLogoImgRef.current = ml;
+    const bl = new Image(); bl.src = bandAidLogoUrl; bandAidLogoImgRef.current = bl;
+    const kl = new Image(); kl.src = medKitLogoUrl; medKitLogoImgRef.current = kl;
+    const hpl = new Image(); hpl.src = healPotionLogoUrl; healPotionLogoImgRef.current = hpl;
+    const hsl = new Image(); hsl.src = healShotLogoUrl; healShotLogoImgRef.current = hsl;
+    const al = new Image(); al.src = armorLogoUrl; armorLogoImgRef.current = al;
+    const acl = new Image(); acl.src = ammoCrateLogoUrl; ammoCrateLogoImgRef.current = acl;
+    const gwl = new Image(); gwl.src = goldenWrapLogoUrl; goldenWrapLogoImgRef.current = gwl;
     const tp = new Image(); tp.src = topDownPistolUrl; topDownPistolImgRef.current = tp;
     const ta = new Image(); ta.src = topDownARUrl; topDownARImgRef.current = ta;
     const ts = new Image(); ts.src = topDownShotgunUrl; topDownShotgunImgRef.current = ts;
@@ -174,6 +198,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     campfires: initialWorldData?.campfires || [],
     grenades: [],
     smokeClouds: [],
+    fireZones: [],
     barrels: initialWorldData?.barrels || [],
     sandbagBarriers: initialWorldData?.sandbagBarriers || [],
     stormCircle: 0,
@@ -295,21 +320,22 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
 
       // Supply drop: 1 legendary + 1 epic + 1 rare
       if (crate.isSupplyDrop) {
-        const weapPool: ItemType[] = ['assault_rifle', 'shotgun', 'armor', 'heal_shot', 'golden_wrap'];
-        const medPool: ItemType[] = ['armor', 'heal_potion', 'medkit'];
+        const legendaryPool: ItemType[] = ['assault_rifle', 'shotgun', 'pistol', 'armor', 'golden_wrap'];
+        const epicPool: ItemType[] = ['assault_rifle', 'shotgun', 'pistol', 'armor', 'heal_shot'];
+        const rarePool: ItemType[] = ['pistol', 'armor', 'heal_potion', 'medkit', 'assault_rifle', 'shotgun'];
         const drops: Array<{ type: ItemType; rarity: Rarity }> = [
-          { type: weapPool[Math.floor(Math.random() * weapPool.length)], rarity: 'legendary' },
-          { type: weapPool[Math.floor(Math.random() * weapPool.length)], rarity: 'epic' },
-          { type: medPool[Math.floor(Math.random() * medPool.length)], rarity: 'rare' },
+          { type: legendaryPool[Math.floor(Math.random() * legendaryPool.length)], rarity: 'legendary' },
+          { type: epicPool[Math.floor(Math.random() * epicPool.length)], rarity: 'epic' },
+          { type: rarePool[Math.floor(Math.random() * rarePool.length)], rarity: 'rare' },
         ];
         drops.forEach(({ type, rarity }, i) => {
           const ang = (i / drops.length) * Math.PI * 2;
           s.items.push({
             id: `sdrop-${Math.random()}`, type,
-            name: type === 'assault_rifle' ? 'Assault Rifle' : type === 'shotgun' ? 'Shotgun' : type.replace(/_/g, ' '),
+            name: type === 'assault_rifle' ? 'Assault Rifle' : type === 'shotgun' ? 'Shotgun' : type === 'pistol' ? 'Pistol' : type === 'golden_wrap' ? 'Golden Wrap' : type.replace(/_/g, ' '),
             x: crate.x + Math.cos(ang) * 30, y: crate.y + Math.sin(ang) * 30,
             rarity, count: 1,
-            ammo: type === 'assault_rifle' ? (rarity === 'legendary' ? 50 : 40) : type === 'shotgun' ? 24 : undefined,
+            ammo: type === 'assault_rifle' ? (rarity === 'legendary' ? 50 : 40) : type === 'shotgun' ? (rarity === 'legendary' ? 24 : 16) : type === 'pistol' ? 30 : undefined,
             armorHealth: type === 'armor' ? aHMap[rarity] : undefined,
             vx: Math.cos(ang) * 5, vy: Math.sin(ang) * 5,
           });
@@ -320,77 +346,56 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
 
       if (crate.isGold) {
-        // Gold crate: always 1 drop, always Epic or Legendary
-        for (let i = 0; i < 1; i++) {
-          const rarity: Rarity = Math.random() > 0.45 ? 'legendary' : 'epic';
-          const roll = Math.random();
-          let type: ItemType;
-          if (roll > 0.65) { type = 'assault_rifle'; }
-          else if (roll > 0.35) { type = 'armor'; }
-          else if (roll > 0.15) { type = 'shotgun'; }
-          else { type = 'heal_shot'; }
-          s.items.push({
-            id: `drop-${Math.random()}`,
-            type,
-            name: type === 'assault_rifle' ? 'Assault Rifle' : type === 'shotgun' ? 'Shotgun' : type.replace(/_/g, ' '),
-            x: crate.x + (Math.random() - 0.5) * 20,
-            y: crate.y + (Math.random() - 0.5) * 20,
-            rarity,
-            ammo: type === 'assault_rifle' ? (rarity === 'legendary' ? 50 : 40) : type === 'shotgun' ? (rarity === 'legendary' ? 24 : 16) : undefined,
-            armorHealth: type === 'armor' ? aHMap[rarity] : undefined,
-            count: 1,
-            vx: (Math.random() - 0.5) * 8,
-            vy: (Math.random() - 0.5) * 8
-          });
-        }
+        // Gold crate: 70% Epic, 30% Legendary
+        const rarity: Rarity = Math.random() < 0.70 ? 'epic' : 'legendary';
+        const isEpic = rarity === 'epic';
+        const epicPool: ItemType[] = ['assault_rifle', 'shotgun', 'pistol', 'armor', 'heal_shot'];
+        const legendaryPool: ItemType[] = ['assault_rifle', 'shotgun', 'pistol', 'armor', 'golden_wrap'];
+        const type = isEpic ? epicPool[Math.floor(Math.random() * epicPool.length)] : legendaryPool[Math.floor(Math.random() * legendaryPool.length)];
+        s.items.push({
+          id: `drop-${Math.random()}`,
+          type,
+          name: type === 'assault_rifle' ? 'Assault Rifle' : type === 'shotgun' ? 'Shotgun' : type === 'pistol' ? 'Pistol' : type === 'golden_wrap' ? 'Golden Wrap' : type.replace(/_/g, ' '),
+          x: crate.x + (Math.random() - 0.5) * 20,
+          y: crate.y + (Math.random() - 0.5) * 20,
+          rarity,
+          ammo: type === 'assault_rifle' ? (rarity === 'legendary' ? 50 : 40) : type === 'shotgun' ? (rarity === 'legendary' ? 24 : 16) : type === 'pistol' ? 30 : undefined,
+          armorHealth: type === 'armor' ? aHMap[rarity] : undefined,
+          count: 1,
+          vx: (Math.random() - 0.5) * 8,
+          vy: (Math.random() - 0.5) * 8
+        });
       } else {
-        // Regular crate: 1–2 drops
+        // Regular crate: 50% Common, 25% Uncommon, 15% Rare, 7% Epic, 3% Legendary
         const dropCount = Math.floor(Math.random() * 2) + 1;
         for (let i = 0; i < dropCount; i++) {
           const roll = Math.random();
-          let type: ItemType = 'pistol';
-          let rarity: Rarity = 'common';
+          let rarity: Rarity;
+          if (roll < 0.50) rarity = 'common';
+          else if (roll < 0.75) rarity = 'uncommon';
+          else if (roll < 0.90) rarity = 'rare';
+          else if (roll < 0.97) rarity = 'epic';
+          else rarity = 'legendary';
 
-          if (roll > 0.92) {
-            type = 'ammo_crate';
-            rarity = Math.random() > 0.7 ? 'legendary' : 'epic';
-          } else if (roll > 0.78) {
-            type = 'armor';
-            const rr = Math.random();
-            rarity = rr > 0.95 ? 'legendary' : rr > 0.8 ? 'epic' : rr > 0.5 ? 'rare' : rr > 0.2 ? 'uncommon' : 'common';
-          } else if (roll > 0.72) {
-            // Grenade or smoke grenade (smoke is rare)
-            const gr = Math.random();
-            type = gr > 0.75 ? 'grenade' : 'smoke_grenade';
-            rarity = type === 'smoke_grenade' ? 'rare' : 'uncommon';
-          } else if (roll > 0.3) {
-            const mr = Math.random();
-            if (mr > 0.96) { type = 'golden_wrap'; rarity = 'legendary'; }
-            else if (mr > 0.85) { type = 'heal_shot'; rarity = 'epic'; }
-            else if (mr > 0.6) { type = 'heal_potion'; rarity = 'rare'; }
-            else if (mr > 0.3) { type = 'medkit'; rarity = 'uncommon'; }
-            else { type = 'band_aid'; rarity = 'common'; }
-          } else {
-            const rr = Math.random();
-            rarity = rr > 0.95 ? 'legendary' : rr > 0.8 ? 'epic' : rr > 0.5 ? 'rare' : rr > 0.2 ? 'uncommon' : 'common';
-            if (rarity === 'rare' || rarity === 'epic' || rarity === 'legendary') {
-              const wRoll = Math.random();
-              if (wRoll > 0.55) { type = 'assault_rifle'; }
-              else if (wRoll > 0.2) { type = 'shotgun'; }
-            } else if (rarity === 'uncommon' && Math.random() > 0.6) {
-              type = 'assault_rifle'; // uncommon AR: lower damage (27), shorter ammo (30)
-            }
-          }
+          let type: ItemType;
+          const commonPool: ItemType[] = ['pistol', 'band_aid'];
+          const uncommonPool: ItemType[] = ['pistol', 'medkit', 'grenade', 'assault_rifle', 'armor'];
+          const rarePool: ItemType[] = ['pistol', 'heal_potion', 'smoke_grenade', 'assault_rifle', 'shotgun', 'armor', 'ammo_crate', 'molotov'];
+          const epicPool: ItemType[] = ['pistol', 'heal_shot', 'assault_rifle', 'shotgun', 'armor', 'ammo_crate'];
+          const legendaryPool: ItemType[] = ['pistol', 'assault_rifle', 'shotgun', 'armor', 'ammo_crate', 'golden_wrap'];
 
-          const isThrowable = type === 'grenade' || type === 'smoke_grenade';
+          const pool = rarity === 'common' ? commonPool : rarity === 'uncommon' ? uncommonPool : rarity === 'rare' ? rarePool : rarity === 'epic' ? epicPool : legendaryPool;
+          type = pool[Math.floor(Math.random() * pool.length)];
+
+          const isThrowable = type === 'grenade' || type === 'smoke_grenade' || type === 'molotov';
           s.items.push({
             id: `drop-${Math.random()}`,
             type,
-            name: type === 'assault_rifle' ? 'Assault Rifle' : type === 'shotgun' ? 'Shotgun' : type === 'grenade' ? 'Grenade' : type === 'smoke_grenade' ? 'Smoke Grenade' : type.replace(/_/g, ' '),
+            name: type === 'assault_rifle' ? 'Assault Rifle' : type === 'shotgun' ? 'Shotgun' : type === 'pistol' ? 'Pistol' : type === 'grenade' ? 'Grenade' : type === 'smoke_grenade' ? 'Smoke Grenade' : type === 'molotov' ? 'Molotov' : type === 'golden_wrap' ? 'Golden Wrap' : type.replace(/_/g, ' '),
             x: crate.x + (Math.random() - 0.5) * 20,
             y: crate.y + (Math.random() - 0.5) * 20,
             rarity,
-            ammo: type === 'pistol' ? 30 : type === 'assault_rifle' ? (rarity === 'legendary' ? 50 : rarity === 'epic' ? 40 : 30) : type === 'shotgun' ? 16 : undefined,
+            ammo: type === 'pistol' ? 30 : type === 'assault_rifle' ? (rarity === 'legendary' ? 50 : rarity === 'epic' ? 40 : rarity === 'rare' ? 35 : 30) : type === 'shotgun' ? (rarity === 'legendary' ? 24 : rarity === 'epic' ? 20 : 16) : undefined,
             armorHealth: type === 'armor' ? aHMap[rarity] : undefined,
             count: isThrowable ? 2 : 1,
             vx: (Math.random() - 0.5) * 8,
@@ -548,14 +553,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     const p = s.players[s.localPlayerId];
     if (s.isGameOver || p.health <= 0) return;
     const item = p.inventory[p.selectedSlot];
-    if (!item || (item.type !== 'grenade' && item.type !== 'smoke_grenade')) {
+    if (!item || (item.type !== 'grenade' && item.type !== 'smoke_grenade' && item.type !== 'molotov')) {
       // Try finding a grenade in inventory
-      const gIdx = p.inventory.findIndex(i => i && (i.type === 'grenade' || i.type === 'smoke_grenade'));
+      const gIdx = p.inventory.findIndex(i => i && (i.type === 'grenade' || i.type === 'smoke_grenade' || i.type === 'molotov'));
       if (gIdx === -1) return;
       p.selectedSlot = gIdx;
     }
     const gItem = p.inventory[p.selectedSlot];
-    if (!gItem || (gItem.type !== 'grenade' && gItem.type !== 'smoke_grenade')) return;
+    if (!gItem || (gItem.type !== 'grenade' && gItem.type !== 'smoke_grenade' && gItem.type !== 'molotov')) return;
     lastGrenadeTime.current = now;
 
     const grenade: Grenade = {
@@ -564,9 +569,10 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       y: p.y + Math.sin(p.rotation) * 25,
       vx: Math.cos(p.rotation) * 9,
       vy: Math.sin(p.rotation) * 9,
-      fuseTimer: 180,
+      fuseTimer: 120, // Faster fuse for grenades
       ownerId: p.id,
       isSmokeGrenade: gItem.type === 'smoke_grenade',
+      isMolotov: gItem.type === 'molotov',
     };
     s.grenades.push(grenade);
     safeSend({ type: 'GRENADE_SPAWN', grenade });
@@ -595,20 +601,23 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       return;
     }
     const item = p.inventory[p.selectedSlot];
-    if (!item || (item.type !== 'grenade' && item.type !== 'smoke_grenade')) return;
+    if (!item || (item.type !== 'grenade' && item.type !== 'smoke_grenade' && item.type !== 'molotov')) return;
     lastGrenadeTime.current = now;
     const angle = Math.atan2(worldMouseY - p.y, worldMouseX - p.x);
     // v0 = dist * 0.06 so total travel (v0 / (1 - 0.94)) equals dist exactly, but slower
     const throwSpeed = Math.max(2, dist * 0.06);
+    const isSmoke = item.type === 'smoke_grenade';
+    const isMolotov = item.type === 'molotov';
     const grenade: Grenade = {
       id: Math.random().toString(),
       x: p.x + Math.cos(angle) * 25,
       y: p.y + Math.sin(angle) * 25,
       vx: Math.cos(angle) * throwSpeed,
       vy: Math.sin(angle) * throwSpeed,
-      fuseTimer: 180,
+      fuseTimer: isSmoke || isMolotov ? 0 : 120, // Instant for smoke and molotov, faster for regular grenade
       ownerId: p.id,
-      isSmokeGrenade: item.type === 'smoke_grenade',
+      isSmokeGrenade: isSmoke,
+      isMolotov: isMolotov,
     };
     s.grenades.push(grenade);
     safeSend({ type: 'GRENADE_SPAWN', grenade });
@@ -686,10 +695,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     }
 
     // Stack meds/throwables of same type up to rarity-based max
-    const medTypes = ['band_aid', 'medkit', 'heal_potion', 'heal_shot', 'golden_wrap', 'grenade', 'smoke_grenade'];
+    const medTypes = ['band_aid', 'medkit', 'heal_potion', 'heal_shot', 'golden_wrap', 'grenade', 'smoke_grenade', 'molotov'];
       const getMedMaxCount = (t: string, r: Rarity): number => {
       if (t === 'grenade') return 5;
       if (t === 'smoke_grenade') return 3;
+      if (t === 'molotov') return 3;
       const m: Record<Rarity, number> = { common: 5, uncommon: 5, rare: 3, epic: 2, legendary: 1 };
       return m[r];
     };
@@ -1257,7 +1267,15 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       g.fuseTimer--;
       if (g.fuseTimer <= 0) {
         if (isHost) {
-          if (!g.isSmokeGrenade) {
+          if (g.isSmokeGrenade) {
+            s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 280, life: 600 });
+            safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
+          } else if (g.isMolotov) {
+            s.fireZones.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 180, life: 600, maxLife: 600 });
+            spawnParticles(g.x, g.y, '#ff4400', 20, 'stone');
+            spawnParticles(g.x, g.y, '#ff8800', 15, 'stone');
+            safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones } });
+          } else {
             const GREN_RADIUS = 220;
             (Object.values(s.players) as Player[]).forEach(pl => {
               if (pl.health > 0 && pl.id !== g.ownerId) {
@@ -1281,9 +1299,6 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             spawnParticles(g.x, g.y, '#ffcc00', 10, 'stone');
             screenShakeRef.current = 14;
             safeSend({ type: 'STATE_UPDATE', state: { grenades: s.grenades, barrels: s.barrels }, particleEvents: [{ x: g.x, y: g.y, color: '#ff6600', count: 30 }] });
-          } else {
-            s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 280, life: 600 });
-            safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
           }
         }
         return false;
@@ -1301,6 +1316,33 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     // Update network with smoke cloud changes periodically
     if (isHost && frameCount.current % 30 === 0 && s.smokeClouds.length > 0) {
       safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
+    }
+
+    // Fire zone physics - deals damage to players inside
+    s.fireZones.forEach(fz => {
+      if (fz.radius < fz.maxRadius) fz.radius += (fz.maxRadius - fz.radius) * 0.08;
+      fz.life--;
+      // Deal damage every second (60 frames) to players in fire
+      if (isHost && frameCount.current % 60 === 0) {
+        (Object.values(s.players) as Player[]).forEach(pl => {
+          if (pl.health > 0) {
+            const dist = Math.hypot(pl.x - fz.x, pl.y - fz.y);
+            if (dist < fz.radius) {
+              const dmg = 5;
+              if (pl.id === localId) {
+                pl.health = Math.max(0, pl.health - dmg);
+                pl.damageTaken = (pl.damageTaken || 0) + dmg;
+              } else {
+                safeSendTo({ type: 'PLAYER_HIT', targetId: pl.id, damage: dmg, attackerId: 'fire' }, pl.id);
+              }
+            }
+          }
+        });
+      }
+    });
+    s.fireZones = s.fireZones.filter(fz => fz.life > 0);
+    if (isHost && frameCount.current % 30 === 0 && s.fireZones.length > 0) {
+      safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones } });
     }
 
     // Item Proximity
@@ -1375,6 +1417,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     const hmm = (e: MouseEvent) => mousePos.current = { x: e.clientX, y: e.clientY };
     const hmd = (e: MouseEvent) => {
       if (e.button === 0) mouseDownRef.current = true;
+      // Don't shoot/punch if clicking on HUD elements (not canvas)
+      if (e.target !== canvasRef.current) return;
       if (!stateRef.current.isGameOver) {
         if (throwModeRef.current) {
           if (e.button === 0) executeThrowTowardMouse();
@@ -1696,25 +1740,23 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       s.items.forEach(i => {
         ctx.save(); ctx.translate(i.x, i.y);
         ctx.shadowBlur = 22; ctx.shadowColor = RARITY_COLORS[i.rarity];
-        if (i.type === 'pistol' || i.type === 'assault_rifle' || i.type === 'shotgun' || i.type === 'grenade' || i.type === 'smoke_grenade') {
-          const img = i.type === 'pistol' ? pistolImgRef.current
-            : i.type === 'assault_rifle' ? arImgRef.current
-            : i.type === 'shotgun' ? shotgunLogoImgRef.current
-            : i.type === 'smoke_grenade' ? smokeLogoImgRef.current
-            : grenadeLogoImgRef.current;
-          if (img && img.complete && img.naturalWidth > 0) {
-            const sz = i.type === 'assault_rifle' ? 50 : i.type === 'shotgun' ? 48 : 34;
-            ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
-          }
-        } else {
-          ctx.font = '32px serif'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-          const em = i.type === 'armor' ? '🛡️'
-            : i.type === 'ammo_crate' ? '📦'
-            : i.type === 'medkit' ? '🎒'
-            : i.type === 'heal_potion' ? '🧪'
-            : i.type === 'heal_shot' ? '💉'
-            : '🩹';
-          ctx.fillText(em, 0, 0);
+        let img: HTMLImageElement | null = null;
+        let sz = 34;
+        if (i.type === 'pistol') { img = pistolImgRef.current; sz = 32; }
+        else if (i.type === 'assault_rifle') { img = arImgRef.current; sz = 50; }
+        else if (i.type === 'shotgun') { img = shotgunLogoImgRef.current; sz = 48; }
+        else if (i.type === 'grenade') { img = grenadeLogoImgRef.current; }
+        else if (i.type === 'smoke_grenade') { img = smokeLogoImgRef.current; }
+        else if (i.type === 'molotov') { img = molotovLogoImgRef.current; }
+        else if (i.type === 'band_aid') { img = bandAidLogoImgRef.current; }
+        else if (i.type === 'medkit') { img = medKitLogoImgRef.current; }
+        else if (i.type === 'heal_potion') { img = healPotionLogoImgRef.current; }
+        else if (i.type === 'heal_shot') { img = healShotLogoImgRef.current; }
+        else if (i.type === 'armor') { img = armorLogoImgRef.current; }
+        else if (i.type === 'ammo_crate') { img = ammoCrateLogoImgRef.current; }
+        else if (i.type === 'golden_wrap') { img = goldenWrapLogoImgRef.current; }
+        if (img && img.complete && img.naturalWidth > 0) {
+          ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
         }
         ctx.restore();
       });
@@ -1830,26 +1872,6 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.beginPath(); ctx.arc(10, 6, 2.5, 0, Math.PI * 2); ctx.fill();
 
         ctx.restore();
-      });
-
-      // Smoke Clouds - 5 seconds visible, 5 seconds fade (fully opaque grey)
-      s.smokeClouds.forEach(cloud => {
-        if (cloud.radius <= 0) return;
-        const fadeStartLife = 300;
-        const alpha = (cloud.life > fadeStartLife ? 1 : cloud.life / fadeStartLife);
-        const offsets = [
-          { x: -cloud.radius * 0.2, y: cloud.radius * 0.1, grey: 100, rOff: 0.65 },
-          { x: cloud.radius * 0.15, y: -cloud.radius * 0.15, grey: 120, rOff: 0.75 },
-          { x: 0, y: 0, grey: 90, rOff: 0.85 },
-          { x: -cloud.radius * 0.1, y: -cloud.radius * 0.1, grey: 110, rOff: 0.7 },
-        ];
-        offsets.forEach((off) => {
-          const r = cloud.radius * off.rOff;
-          ctx.fillStyle = `rgba(${off.grey},${off.grey},${off.grey},${alpha})`;
-          ctx.beginPath(); ctx.arc(cloud.x + off.x, cloud.y + off.y, r, 0, Math.PI * 2); ctx.fill();
-        });
-        ctx.fillStyle = `rgba(80,80,80,${alpha * 0.9})`;
-        ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius * 0.4, 0, Math.PI * 2); ctx.fill();
       });
 
       // In-flight Grenades
@@ -2022,6 +2044,45 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.fillText(s.ammoAlert, 0, 0); ctx.restore();
       }
 
+      // Smoke Clouds - rendered last (on top of everything)
+      s.smokeClouds.forEach(cloud => {
+        if (cloud.radius <= 0) return;
+        const fadeStartLife = 300;
+        const alpha = (cloud.life > fadeStartLife ? 1 : cloud.life / fadeStartLife);
+        const offsets = [
+          { x: -cloud.radius * 0.2, y: cloud.radius * 0.1, grey: 100, rOff: 0.65 },
+          { x: cloud.radius * 0.15, y: -cloud.radius * 0.15, grey: 120, rOff: 0.75 },
+          { x: 0, y: 0, grey: 90, rOff: 0.85 },
+          { x: -cloud.radius * 0.1, y: -cloud.radius * 0.1, grey: 110, rOff: 0.7 },
+        ];
+        offsets.forEach((off) => {
+          const r = cloud.radius * off.rOff;
+          ctx.fillStyle = `rgba(${off.grey},${off.grey},${off.grey},${alpha})`;
+          ctx.beginPath(); ctx.arc(cloud.x + off.x, cloud.y + off.y, r, 0, Math.PI * 2); ctx.fill();
+        });
+        ctx.fillStyle = `rgba(80,80,80,${alpha * 0.9})`;
+        ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius * 0.4, 0, Math.PI * 2); ctx.fill();
+      });
+
+      // Fire Zones - molotov fire (7 seconds full, 3 seconds fade)
+      s.fireZones.forEach(fz => {
+        if (fz.radius <= 0) return;
+        const fadeStartLife = 420; // 7 seconds at 60fps
+        const alpha = (fz.life > fadeStartLife ? 1 : fz.life / fadeStartLife);
+        const fireColors = ['#ff4400', '#ff6600', '#ff8800', '#ffaa00'];
+        for (let i = 0; i < 8; i++) {
+          const angle = (i / 8) * Math.PI * 2 + fz.life * 0.02;
+          const dist = fz.radius * 0.3 * Math.sin(fz.life * 0.1 + i);
+          const fx = fz.x + Math.cos(angle) * dist;
+          const fy = fz.y + Math.sin(angle) * dist;
+          const r = fz.radius * 0.4 + Math.sin(fz.life * 0.15 + i) * 15;
+          ctx.fillStyle = fireColors[i % 4];
+          ctx.globalAlpha = alpha * (0.6 + Math.sin(fz.life * 0.2 + i) * 0.3);
+          ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.globalAlpha = 1;
+      });
+
       ctx.restore();
       // Keep game loop running even when tab is hidden (setTimeout not throttled like rAF)
       if (document.hidden) {
@@ -2052,11 +2113,6 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       {nearbyItem && !uiState.isGameOver && (
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-24 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-lg border border-white/20 animate-bounce pointer-events-none z-50">
           <span className="font-bold">Press <span className="bg-white text-black px-1 rounded">E</span> to pick up {nearbyItem.name}</span>
-        </div>
-      )}
-      {throwModeActive && !uiState.isGameOver && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-32 bg-black/60 backdrop-blur-sm text-white px-4 py-2 rounded-lg border border-white/20 pointer-events-none z-50">
-          <span className="font-bold">Press <span className="bg-white text-black px-1 rounded">F</span> or <span className="bg-white text-black px-1 rounded">Left Click</span> to throw • <span className="bg-white text-black px-1 rounded">F</span> to cancel</span>
         </div>
       )}
       {/* Kill feed — top right, above stats */}
