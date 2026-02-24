@@ -115,7 +115,8 @@ interface LobbyProps {
 }
 
 const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
-  const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting' | 'customize'>('main');
+  const [menuState, setMenuState] = useState<'main' | 'create' | 'join' | 'waiting' | 'customize' | 'pass'>('main');
+  const [passPage, setPassPage] = useState(0);
   const [lobbyCode, setLobbyCode] = useState('');
   const [enteredCode, setEnteredCode] = useState('');
   const [playerCount, setPlayerCount] = useState(1);
@@ -1100,8 +1101,84 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
             </div>
             <p className="text-white font-black text-2xl tracking-widest uppercase drop-shadow-[0_0_16px_rgba(255,255,255,0.2)]">{username}</p>
             <p className="text-white/30 text-sm font-bold tracking-wider">Pick a color from the sidebar</p>
+           </div>
+        </div>
+      )}
+
+      {/* Verdant Pass Screen */}
+      {menuState === 'pass' && (
+      <div className="absolute inset-0 z-30 flex pointer-events-auto select-none" style={{ backdropFilter: 'blur(12px)', background: 'rgba(0,0,0,0.85)' }}>
+        <div className="absolute top-6 left-6">
+          <button
+            onClick={() => { setPassPage(0); setMenuState('main'); }}
+            className="text-white/50 hover:text-white font-black text-sm tracking-widest uppercase transition-colors"
+          >
+            ← BACK TO MAIN MENU
+          </button>
+        </div>
+
+        {/* Pass Title */}
+        <div className="absolute top-8 left-1/2 -translate-x-1/2">
+          <h2 className="text-white text-4xl font-black italic tracking-wider drop-shadow-[0_0_20px_rgba(34,197,94,0.5)]">
+            VERDANT PASS
+          </h2>
+        </div>
+
+        {/* Level Grid */}
+        <div className="flex-1 flex items-center justify-center">
+          <div className="flex flex-col items-center gap-6">
+            {/* 5 Levels */}
+            <div className="flex flex-col gap-4">
+              {[0,1,2,3,4].map((i) => {
+                const levelNum = passPage * 5 + i + 1;
+                return (
+                  <div
+                    key={levelNum}
+                    className="w-80 h-20 rounded-2xl border-2 border-white/20 bg-white/5 flex items-center px-6 gap-4 relative overflow-hidden"
+                  >
+                    <div className="absolute inset-0 bg-gradient-to-r from-green-900/20 to-transparent" />
+                    <div className="text-white/20 font-black text-4xl italic">{levelNum}</div>
+                    <div className="flex-1">
+                      <div className="text-white/30 text-xs font-bold tracking-widest uppercase">LOCKED</div>
+                      <div className="text-white/50 text-sm">Reward Unavailable</div>
+                    </div>
+                    <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center">
+                      <div className="w-6 h-6 rounded-full border-2 border-white/20" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Navigation Arrows */}
+            <div className="flex items-center gap-16 mt-4">
+              {passPage > 0 && (
+                <button
+                  onClick={() => setPassPage(passPage - 1)}
+                  className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white font-black text-2xl hover:bg-white/20 hover:scale-110 transition-all flex items-center justify-center"
+                >
+                  ←
+                </button>
+              )}
+              <button
+                onClick={() => setPassPage(passPage + 1)}
+                className="w-14 h-14 rounded-full bg-white/10 border border-white/20 text-white font-black text-2xl hover:bg-white/20 hover:scale-110 transition-all flex items-center justify-center"
+              >
+                →
+              </button>
+            </div>
           </div>
         </div>
+
+        {/* Coming Soon */}
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2">
+          <button
+            className="px-8 py-3 bg-white/5 text-white/30 font-black text-lg rounded-xl border border-white/10 cursor-not-allowed"
+          >
+            COMING SOON
+          </button>
+        </div>
+      </div>
       )}
 
       {/* Centered UI */}
@@ -1122,6 +1199,12 @@ const Lobby: React.FC<LobbyProps> = ({ onLaunch, username, onLogout }) => {
 
           {menuState === 'main' && (
             <div className="p-3 flex flex-col gap-2">
+              <button
+                onClick={() => { setPassPage(0); setMenuState('pass'); }}
+                className="w-full px-8 py-4 bg-gradient-to-r from-green-600 to-green-500 text-white font-black text-xl rounded-2xl hover:from-green-500 hover:to-green-400 hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-[0_0_30px_rgba(34,197,94,0.4)] animate-pulse"
+              >
+                VERDANT PASS
+              </button>
               <button
                 onClick={() => setMenuState('create')}
                 className="w-full px-8 py-4 bg-white text-black font-black text-lg rounded-2xl hover:bg-green-400 hover:text-white hover:scale-[1.02] active:scale-[0.98] transition-all duration-150 shadow-lg"
