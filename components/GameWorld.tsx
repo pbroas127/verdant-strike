@@ -371,10 +371,10 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         for (let i = 0; i < dropCount; i++) {
           const roll = Math.random();
           let rarity: Rarity;
-          if (roll < 0.50) rarity = 'common';
-          else if (roll < 0.75) rarity = 'uncommon';
-          else if (roll < 0.90) rarity = 'rare';
-          else if (roll < 0.97) rarity = 'epic';
+          if (roll < 0.45) rarity = 'common';
+          else if (roll < 0.70) rarity = 'uncommon';
+          else if (roll < 0.88) rarity = 'rare';
+          else if (roll < 0.96) rarity = 'epic';
           else rarity = 'legendary';
 
           let type: ItemType;
@@ -614,10 +614,12 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       y: p.y + Math.sin(angle) * 25,
       vx: Math.cos(angle) * throwSpeed,
       vy: Math.sin(angle) * throwSpeed,
-      fuseTimer: isSmoke || isMolotov ? 0 : 120, // Instant for smoke and molotov, faster for regular grenade
+      fuseTimer: isSmoke || isMolotov ? Math.ceil(dist / throwSpeed / 0.94) + 5 : 120, // Explode when reaching target
       ownerId: p.id,
       isSmokeGrenade: isSmoke,
       isMolotov: isMolotov,
+      targetX: isSmoke || isMolotov ? worldMouseX : undefined,
+      targetY: isSmoke || isMolotov ? worldMouseY : undefined,
     };
     s.grenades.push(grenade);
     safeSend({ type: 'GRENADE_SPAWN', grenade });
@@ -1265,7 +1267,10 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       g.x += g.vx; g.y += g.vy;
       g.vx *= 0.94; g.vy *= 0.94;
       g.fuseTimer--;
-      if (g.fuseTimer <= 0) {
+      // Check if smoke/molotov reached target - explode immediately
+      const reachedTarget = g.targetX !== undefined && g.targetY !== undefined && 
+        Math.hypot(g.x - g.targetX, g.y - g.targetY) < 25;
+      if (g.fuseTimer <= 0 || reachedTarget) {
         if (isHost) {
           if (g.isSmokeGrenade) {
             s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 280, life: 600 });
@@ -1741,20 +1746,20 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.save(); ctx.translate(i.x, i.y);
         ctx.shadowBlur = 22; ctx.shadowColor = RARITY_COLORS[i.rarity];
         let img: HTMLImageElement | null = null;
-        let sz = 40;
+        let sz = 44;
         if (i.type === 'pistol') { img = pistolImgRef.current; sz = 32; }
         else if (i.type === 'assault_rifle') { img = arImgRef.current; sz = 50; }
         else if (i.type === 'shotgun') { img = shotgunLogoImgRef.current; sz = 48; }
-        else if (i.type === 'grenade') { img = grenadeLogoImgRef.current; sz = 38; }
-        else if (i.type === 'smoke_grenade') { img = smokeLogoImgRef.current; sz = 38; }
-        else if (i.type === 'molotov') { img = molotovLogoImgRef.current; sz = 38; }
-        else if (i.type === 'band_aid') { img = bandAidLogoImgRef.current; sz = 40; }
-        else if (i.type === 'medkit') { img = medKitLogoImgRef.current; sz = 42; }
-        else if (i.type === 'heal_potion') { img = healPotionLogoImgRef.current; sz = 40; }
-        else if (i.type === 'heal_shot') { img = healShotLogoImgRef.current; sz = 38; }
-        else if (i.type === 'armor') { img = armorLogoImgRef.current; sz = 44; }
-        else if (i.type === 'ammo_crate') { img = ammoCrateLogoImgRef.current; sz = 46; }
-        else if (i.type === 'golden_wrap') { img = goldenWrapLogoImgRef.current; sz = 40; }
+        else if (i.type === 'grenade') { img = grenadeLogoImgRef.current; sz = 44; }
+        else if (i.type === 'smoke_grenade') { img = smokeLogoImgRef.current; sz = 44; }
+        else if (i.type === 'molotov') { img = molotovLogoImgRef.current; sz = 44; }
+        else if (i.type === 'band_aid') { img = bandAidLogoImgRef.current; sz = 44; }
+        else if (i.type === 'medkit') { img = medKitLogoImgRef.current; sz = 46; }
+        else if (i.type === 'heal_potion') { img = healPotionLogoImgRef.current; sz = 44; }
+        else if (i.type === 'heal_shot') { img = healShotLogoImgRef.current; sz = 44; }
+        else if (i.type === 'armor') { img = armorLogoImgRef.current; sz = 48; }
+        else if (i.type === 'ammo_crate') { img = ammoCrateLogoImgRef.current; sz = 50; }
+        else if (i.type === 'golden_wrap') { img = goldenWrapLogoImgRef.current; sz = 44; }
         if (img && img.complete && img.naturalWidth > 0) {
           ctx.drawImage(img, -sz / 2, -sz / 2, sz, sz);
         }
@@ -2064,23 +2069,34 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.beginPath(); ctx.arc(cloud.x, cloud.y, cloud.radius * 0.4, 0, Math.PI * 2); ctx.fill();
       });
 
-      // Fire Zones - molotov fire (7 seconds full, 3 seconds fade)
+      // Fire Zones - molotov fire (7 seconds full, 3 seconds fade) - spread out flames like campfire
       s.fireZones.forEach(fz => {
         if (fz.radius <= 0) return;
         const fadeStartLife = 420; // 7 seconds at 60fps
         const alpha = (fz.life > fadeStartLife ? 1 : fz.life / fadeStartLife);
-        const fireColors = ['#ff4400', '#ff6600', '#ff8800', '#ffaa00'];
-        for (let i = 0; i < 8; i++) {
-          const angle = (i / 8) * Math.PI * 2 + fz.life * 0.02;
-          const dist = fz.radius * 0.3 * Math.sin(fz.life * 0.1 + i);
+        const t = fz.life * 0.05;
+        
+        // Draw multiple flames spread throughout the radius
+        for (let i = 0; i < 12; i++) {
+          const angle = (i / 12) * Math.PI * 2 + t * 0.3;
+          const dist = fz.radius * 0.5 * (0.5 + 0.5 * Math.sin(t + i * 1.5));
           const fx = fz.x + Math.cos(angle) * dist;
           const fy = fz.y + Math.sin(angle) * dist;
-          const r = fz.radius * 0.4 + Math.sin(fz.life * 0.15 + i) * 15;
-          ctx.fillStyle = fireColors[i % 4];
-          ctx.globalAlpha = alpha * (0.6 + Math.sin(fz.life * 0.2 + i) * 0.3);
-          ctx.beginPath(); ctx.arc(fx, fy, r, 0, Math.PI * 2); ctx.fill();
+          
+          // Outer flame
+          ctx.shadowBlur = 28; ctx.shadowColor = 'rgba(255,100,0,0.7)';
+          ctx.fillStyle = `rgba(255,${Math.round(70+Math.sin(t*0.8+i)*20)},0,${alpha * 0.8})`;
+          ctx.beginPath(); ctx.ellipse(fx, fy - 10, 12 + Math.sin(t + i)*3, 20 + Math.sin(t*0.9 + i)*4, Math.sin(t*0.3 + i)*0.2, 0, Math.PI * 2); ctx.fill();
+          
+          // Mid flame  
+          ctx.fillStyle = `rgba(255,${Math.round(150+Math.sin(t*1.2 + i*0.8)*30)},0,${alpha * 0.85})`;
+          ctx.beginPath(); ctx.ellipse(fx + Math.sin(t + i)*2, fy - 12, 8, 14 + Math.sin(t*1.1 + i)*2, Math.sin(t*0.5 + i)*0.15, 0, Math.PI * 2); ctx.fill();
+          
+          // Core
+          ctx.fillStyle = `rgba(255,240,160,${alpha * 0.9})`;
+          ctx.beginPath(); ctx.arc(fx, fy - 14, 3, 0, Math.PI * 2); ctx.fill();
         }
-        ctx.globalAlpha = 1;
+        ctx.shadowBlur = 0; ctx.globalAlpha = 1;
       });
 
       ctx.restore();

@@ -74,8 +74,9 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
   };
 
   const getItemContent = (item: Item, size: 'sm' | 'lg') => {
-    const px = size === 'sm' ? 'w-10 h-10' : 'w-14 h-14';
+    const px = size === 'sm' ? 'w-8 h-8' : 'w-12 h-12';
     const arPx = size === 'sm' ? 'w-10 h-10' : 'w-14 h-14';
+    const otherPx = size === 'sm' ? 'w-10 h-10' : 'w-14 h-14';
     if (item.type === 'pistol') {
       return <img src={pistolLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
@@ -86,34 +87,34 @@ const HUD: React.FC<HUDProps> = ({ player, storm, remainingPlayers, ammoAlert, i
       return <img src={shotgunLogoUrl} className={`${arPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'grenade') {
-      return <img src={grenadeLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={grenadeLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'smoke_grenade') {
-      return <img src={smokeLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={smokeLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'molotov') {
-      return <img src={molotovLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={molotovLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'band_aid') {
-      return <img src={bandAidLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={bandAidLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'medkit') {
-      return <img src={medKitLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={medKitLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'heal_potion') {
-      return <img src={healPotionLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={healPotionLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'heal_shot') {
-      return <img src={healShotLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={healShotLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'armor') {
-      return <img src={armorLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={armorLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'ammo_crate') {
-      return <img src={ammoCrateLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={ammoCrateLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     if (item.type === 'golden_wrap') {
-      return <img src={goldenWrapLogoUrl} className={`${px} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
+      return <img src={goldenWrapLogoUrl} className={`${otherPx} object-contain`} style={{ filter: `drop-shadow(0 0 6px ${RARITY_COLORS[item.rarity]})` }} />;
     }
     return null;
   };

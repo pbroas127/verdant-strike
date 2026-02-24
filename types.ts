@@ -118,6 +118,8 @@ export interface Grenade {
   ownerId: string;
   isSmokeGrenade?: boolean;
   isMolotov?: boolean;
+  targetX?: number;
+  targetY?: number;
 }
 
 export interface FireZone {
