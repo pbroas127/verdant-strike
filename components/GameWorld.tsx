@@ -1176,6 +1176,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
               : w.type.includes('brick') ? '#b45309'
               : '#78350f';
             spawnParticles(nx, ny, col, 5, 'stone');
+            if (b.ownerId === p.id) {
+              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: col, count: 5 }] });
+            }
           }
         }
       });
@@ -1189,6 +1192,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             if (Math.abs(wx - nx) < wr.w / 2 + 4 && Math.abs(wy - ny) < wr.h / 2 + 4) {
               hit = true;
               spawnParticles(nx, ny, matColors[bld.material], 4, 'stone');
+              if (b.ownerId === p.id) {
+                safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: matColors[bld.material], count: 4 }] });
+              }
               break;
             }
           }
@@ -1201,6 +1207,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (!hit && (rock.x - nx) ** 2 + (rock.y - ny) ** 2 < (rock.size * 0.6) * (rock.size * 0.6)) {
             hit = true;
             spawnParticles(nx, ny, '#94a3b8', 5, 'stone');
+            if (b.ownerId === p.id) {
+              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#94a3b8', count: 5 }] });
+            }
           }
         });
       }
@@ -1210,6 +1219,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (!hit && (sb.x - nx) ** 2 + (sb.y - ny) ** 2 < 900) {
             hit = true;
             spawnParticles(nx, ny, '#c4a060', 4, 'stone');
+            if (b.ownerId === p.id) {
+              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#c4a060', count: 4 }] });
+            }
           }
         });
       }
@@ -1219,6 +1231,9 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (!hit && (barrel.x - nx) ** 2 + (barrel.y - ny) ** 2 < 400) {
             hit = true;
             spawnParticles(nx, ny, '#ff6600', 6, 'stone');
+            if (b.ownerId === p.id) {
+              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#ff6600', count: 6 }] });
+            }
             if (isHost) handleBarrelHit(barrel.id);
             else safeSend({ type: 'BARREL_HIT', barrelId: barrel.id });
           }
@@ -1286,14 +1301,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       const reachedTarget = g.targetX !== undefined && g.targetY !== undefined && 
         Math.hypot(g.x - g.targetX, g.y - g.targetY) < 25;
       if (g.fuseTimer <= 0 || reachedTarget) {
-        if (isHost) {
-          if (g.isSmokeGrenade) {
-            s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 280, life: 600 });
-            safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
-          } else if (g.isMolotov) {
-            s.fireZones.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 180, life: 600, maxLife: 600 });
-            safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones }, particleEvents: [{ x: g.x, y: g.y, color: '#ff6600', count: 25 }] });
-          } else {
+        if (g.isSmokeGrenade) {
+          s.smokeClouds.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 280, life: 600 });
+          if (isHost) safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
+        } else if (g.isMolotov) {
+          s.fireZones.push({ id: Math.random().toString(), x: g.x, y: g.y, radius: 0, maxRadius: 180, life: 600, maxLife: 600 });
+          if (isHost) safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones }, particleEvents: [{ x: g.x, y: g.y, color: '#ff6600', count: 25 }] });
+        } else {
+          if (isHost) {
             const GREN_RADIUS = 220;
             (Object.values(s.players) as Player[]).forEach(pl => {
               if (pl.health > 0 && pl.id !== g.ownerId) {
@@ -1347,14 +1362,14 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             const distSq = (pl.x - fz.x) ** 2 + (pl.y - fz.y) ** 2;
             if (distSq < fz.radius * fz.radius) {
               const dmg = 5;
-              pl.burnTimer = 180; // 3 seconds of burning after leaving fire
+              pl.burnTimer = 300; // 5 seconds of burning after leaving fire
               if (pl.id === localId) {
                 pl.health = Math.max(0, pl.health - dmg);
                 pl.damageTaken = (pl.damageTaken || 0) + dmg;
                 spawnParticles(pl.x, pl.y, '#ff4400', 3, 'fire');
               } else {
                 safeSendTo({ type: 'PLAYER_HIT', targetId: pl.id, damage: dmg, attackerId: 'fire' }, pl.id);
-                safeSendTo({ type: 'BURN_EFFECT', targetId: pl.id, duration: 180 }, pl.id);
+                safeSendTo({ type: 'BURN_EFFECT', targetId: pl.id, duration: 300 }, pl.id);
               }
             }
           }
