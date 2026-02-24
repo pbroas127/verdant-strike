@@ -548,7 +548,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       spawnParticles(bx, by, '#ff8800', 15, 'stone');
       spawnParticles(bx, by, '#888888', 10, 'stone');
       screenShakeRef.current = 14;
-      safeSend({ type: 'STATE_UPDATE', state: { barrels: s.barrels }, particleEvents: [{ x: bx, y: by, color: '#ff6600', count: 30 }] });
+      safeSend({ type: 'STATE_UPDATE', state: { barrels: s.barrels }, particleEvents: [
+        { x: bx, y: by, color: '#ff4400', count: 25 },
+        { x: bx, y: by, color: '#ff8800', count: 15 },
+        { x: bx, y: by, color: '#888888', count: 10 }
+      ] });
     } else {
       safeSend({ type: 'STATE_UPDATE', state: { barrels: s.barrels } });
     }
@@ -1176,9 +1180,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
               : w.type.includes('brick') ? '#b45309'
               : '#78350f';
             spawnParticles(nx, ny, col, 5, 'stone');
-            if (b.ownerId === p.id) {
-              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: col, count: 5 }] });
-            }
+            safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: col, count: 5 }] });
           }
         }
       });
@@ -1192,9 +1194,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             if (Math.abs(wx - nx) < wr.w / 2 + 4 && Math.abs(wy - ny) < wr.h / 2 + 4) {
               hit = true;
               spawnParticles(nx, ny, matColors[bld.material], 4, 'stone');
-              if (b.ownerId === p.id) {
-                safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: matColors[bld.material], count: 4 }] });
-              }
+              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: matColors[bld.material], count: 4 }] });
               break;
             }
           }
@@ -1207,9 +1207,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (!hit && (rock.x - nx) ** 2 + (rock.y - ny) ** 2 < (rock.size * 0.6) * (rock.size * 0.6)) {
             hit = true;
             spawnParticles(nx, ny, '#94a3b8', 5, 'stone');
-            if (b.ownerId === p.id) {
-              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#94a3b8', count: 5 }] });
-            }
+            safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#94a3b8', count: 5 }] });
           }
         });
       }
@@ -1219,9 +1217,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (!hit && (sb.x - nx) ** 2 + (sb.y - ny) ** 2 < 900) {
             hit = true;
             spawnParticles(nx, ny, '#c4a060', 4, 'stone');
-            if (b.ownerId === p.id) {
-              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#c4a060', count: 4 }] });
-            }
+            safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#c4a060', count: 4 }] });
           }
         });
       }
@@ -1231,9 +1227,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           if (!hit && (barrel.x - nx) ** 2 + (barrel.y - ny) ** 2 < 400) {
             hit = true;
             spawnParticles(nx, ny, '#ff6600', 6, 'stone');
-            if (b.ownerId === p.id) {
-              safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#ff6600', count: 6 }] });
-            }
+            safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: nx, y: ny, color: '#ff6600', count: 6 }] });
             if (isHost) handleBarrelHit(barrel.id);
             else safeSend({ type: 'BARREL_HIT', barrelId: barrel.id });
           }
@@ -1331,7 +1325,11 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             spawnParticles(g.x, g.y, '#ff8800', 15, 'stone');
             spawnParticles(g.x, g.y, '#ffcc00', 10, 'stone');
             screenShakeRef.current = 14;
-            safeSend({ type: 'STATE_UPDATE', state: { grenades: s.grenades, barrels: s.barrels }, particleEvents: [{ x: g.x, y: g.y, color: '#ff6600', count: 30 }] });
+            safeSend({ type: 'STATE_UPDATE', state: { grenades: s.grenades, barrels: s.barrels }, particleEvents: [
+              { x: g.x, y: g.y, color: '#ff4400', count: 25 },
+              { x: g.x, y: g.y, color: '#ff8800', count: 15 },
+              { x: g.x, y: g.y, color: '#ffcc00', count: 10 }
+            ] });
           }
         }
         return false;
@@ -1352,17 +1350,26 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     }
 
     // Fire zone physics - deals damage to players inside and applies burn
+    const inFireThisFrame: string[] = [];
     s.fireZones.forEach(fz => {
       if (fz.radius < fz.maxRadius) fz.radius += (fz.maxRadius - fz.radius) * 0.08;
       fz.life--;
+      
+      // Check if local player is in fire (for particles on client)
+      const localInFire = (p.x - fz.x) ** 2 + (p.y - fz.y) ** 2 < fz.radius * fz.radius;
+      if (localInFire && p.health > 0) {
+        inFireThisFrame.push(p.id);
+      }
+      
       // Deal damage every second (60 frames) to players in fire
       if (isHost && frameCount.current % 60 === 0) {
         (Object.values(s.players) as Player[]).forEach(pl => {
           if (pl.health > 0) {
             const distSq = (pl.x - fz.x) ** 2 + (pl.y - fz.y) ** 2;
             if (distSq < fz.radius * fz.radius) {
-              const dmg = 5;
               pl.burnTimer = 300; // 5 seconds of burning after leaving fire
+              // Only apply direct fire damage, NOT via burnTimer - they're separate
+              const dmg = 5;
               if (pl.id === localId) {
                 pl.health = Math.max(0, pl.health - dmg);
                 pl.damageTaken = (pl.damageTaken || 0) + dmg;
@@ -1377,18 +1384,27 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       }
     });
 
-    // Burn damage for players with active burn timer (after leaving fire)
+    // Spawn fire particles for local player when walking in fire (clients too)
+    if (inFireThisFrame.includes(p.id) && p.health > 0 && frameCount.current % 8 === 0) {
+      spawnParticles(p.x, p.y, '#ff4400', 2, 'fire');
+    }
+
+    // Burn damage for players with active burn timer (after leaving fire) - ONLY on host
     if (isHost && frameCount.current % 60 === 0) {
       (Object.values(s.players) as Player[]).forEach(pl => {
         if (pl.health > 0 && pl.burnTimer && pl.burnTimer > 0) {
-          pl.burnTimer -= 60;
-          const dmg = 5;
-          if (pl.id === localId) {
-            pl.health = Math.max(0, pl.health - dmg);
-            pl.damageTaken = (pl.damageTaken || 0) + dmg;
-            spawnParticles(pl.x, pl.y, '#ff4400', 2, 'fire');
-          } else {
-            safeSendTo({ type: 'PLAYER_HIT', targetId: pl.id, damage: dmg, attackerId: 'fire' }, pl.id);
+          // Check if player is still in fire - if so, skip burn damage (fire damage handles it)
+          const inFire = s.fireZones.some(fz => (pl.x - fz.x) ** 2 + (pl.y - fz.y) ** 2 < fz.radius * fz.radius);
+          if (!inFire) {
+            pl.burnTimer -= 60;
+            const dmg = 5;
+            if (pl.id === localId) {
+              pl.health = Math.max(0, pl.health - dmg);
+              pl.damageTaken = (pl.damageTaken || 0) + dmg;
+              spawnParticles(pl.x, pl.y, '#ff4400', 2, 'fire');
+            } else {
+              safeSendTo({ type: 'PLAYER_HIT', targetId: pl.id, damage: dmg, attackerId: 'fire' }, pl.id);
+            }
           }
         }
       });
