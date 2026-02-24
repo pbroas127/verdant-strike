@@ -262,7 +262,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
     setTimeout(() => setKillFeed(prev => prev.filter(e => e.id !== entry.id)), 5000);
   }, []);
 
-  const spawnParticles = (x: number, y: number, color: string, count: number, type: 'wood' | 'leaf' | 'stone' | 'metal' | 'blood' | 'water') => {
+  const spawnParticles = (x: number, y: number, color: string, count: number, type: 'wood' | 'leaf' | 'stone' | 'metal' | 'blood' | 'water' | 'fire') => {
     // Cap total particles to prevent performance issues
     const MAX_PARTICLES = 200;
     if (stateRef.current.particles.length >= MAX_PARTICLES) return;
@@ -657,6 +657,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         if (remote && remote.health > 0) {
           if ((remote.x - hx) ** 2 + (remote.y - hy) ** 2 < 3025) {
             safeSend({ type: 'PLAYER_HIT', targetId: rid, damage: 5, attackerId: p.id });
+            spawnParticles(remote.x, remote.y, '#ef4444', 4, 'blood');
+            safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: remote.x, y: remote.y, color: '#ef4444', count: 4 }] });
             break;
           }
         }
@@ -822,6 +824,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           }
         }
         addKillFeedEntry(msg.killerId, msg.victimId);
+      } else if (msg.type === 'BURN_EFFECT' && msg.targetId === localId) {
+        s.players[localId].burnTimer = msg.duration;
       }
     };
 
@@ -844,6 +848,8 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
             conns.forEach(oc => { if (oc !== c && oc?.open) oc.send(msg); });
           } else if (msg.type === 'BARREL_HIT') {
             handleBarrelHit(msg.barrelId); return;
+          } else if (msg.type === 'BURN_EFFECT') {
+            conns.forEach(oc => { if (oc !== c && oc?.open) oc.send(msg); });
           }
         }
         processMsg(msg);
@@ -1068,6 +1074,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
           cf.regenTimer = 0;
           campfireUpdated = true;
           spawnParticles(p.x, p.y - 10, '#22c55e', 5, 'leaf');
+          safeSend({ type: 'STATE_UPDATE', state: {}, particleEvents: [{ x: p.x, y: p.y - 10, color: '#22c55e', count: 5 }] });
         }
       } else {
         cf.healTimer = 0;
@@ -1329,7 +1336,7 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       safeSend({ type: 'STATE_UPDATE', state: { smokeClouds: s.smokeClouds } });
     }
 
-    // Fire zone physics - deals damage to players inside
+    // Fire zone physics - deals damage to players inside and applies burn
     s.fireZones.forEach(fz => {
       if (fz.radius < fz.maxRadius) fz.radius += (fz.maxRadius - fz.radius) * 0.08;
       fz.life--;
@@ -1337,20 +1344,40 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
       if (isHost && frameCount.current % 60 === 0) {
         (Object.values(s.players) as Player[]).forEach(pl => {
           if (pl.health > 0) {
-            const dist = Math.hypot(pl.x - fz.x, pl.y - fz.y);
-            if (dist < fz.radius) {
+            const distSq = (pl.x - fz.x) ** 2 + (pl.y - fz.y) ** 2;
+            if (distSq < fz.radius * fz.radius) {
               const dmg = 5;
+              pl.burnTimer = 180; // 3 seconds of burning after leaving fire
               if (pl.id === localId) {
                 pl.health = Math.max(0, pl.health - dmg);
                 pl.damageTaken = (pl.damageTaken || 0) + dmg;
+                spawnParticles(pl.x, pl.y, '#ff4400', 3, 'fire');
               } else {
                 safeSendTo({ type: 'PLAYER_HIT', targetId: pl.id, damage: dmg, attackerId: 'fire' }, pl.id);
+                safeSendTo({ type: 'BURN_EFFECT', targetId: pl.id, duration: 180 }, pl.id);
               }
             }
           }
         });
       }
     });
+
+    // Burn damage for players with active burn timer (after leaving fire)
+    if (isHost && frameCount.current % 60 === 0) {
+      (Object.values(s.players) as Player[]).forEach(pl => {
+        if (pl.health > 0 && pl.burnTimer && pl.burnTimer > 0) {
+          pl.burnTimer -= 60;
+          const dmg = 5;
+          if (pl.id === localId) {
+            pl.health = Math.max(0, pl.health - dmg);
+            pl.damageTaken = (pl.damageTaken || 0) + dmg;
+            spawnParticles(pl.x, pl.y, '#ff4400', 2, 'fire');
+          } else {
+            safeSendTo({ type: 'PLAYER_HIT', targetId: pl.id, damage: dmg, attackerId: 'fire' }, pl.id);
+          }
+        }
+      });
+    }
     s.fireZones = s.fireZones.filter(fz => fz.life > 0);
     if (isHost && frameCount.current % 30 === 0 && s.fireZones.length > 0) {
       safeSend({ type: 'STATE_UPDATE', state: { fireZones: s.fireZones } });
@@ -1896,6 +1923,18 @@ const GameWorld: React.FC<GameWorldProps> = ({ lobbyCode, isHost, peer, conn, in
         ctx.fillStyle = '#000';
         ctx.beginPath(); ctx.arc(10, -6, 2.5, 0, Math.PI * 2); ctx.fill();
         ctx.beginPath(); ctx.arc(10, 6, 2.5, 0, Math.PI * 2); ctx.fill();
+
+        // Burning effect - fire particles around player
+        if (ply.burnTimer && ply.burnTimer > 0) {
+          ctx.save();
+          ctx.shadowBlur = 15; ctx.shadowColor = 'rgba(255,100,0,0.8)';
+          const burnOffset = Math.sin(frameCount.current * 0.3) * 3;
+          ctx.fillStyle = `rgba(255,${Math.round(100 + Math.sin(frameCount.current * 0.2) * 50)},0,0.8)`;
+          ctx.beginPath(); ctx.arc(-12 + burnOffset, -8, 4 + Math.random() * 2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(12 - burnOffset, -5, 3 + Math.random() * 2, 0, Math.PI * 2); ctx.fill();
+          ctx.beginPath(); ctx.arc(-8 + burnOffset, 10, 3 + Math.random() * 2, 0, Math.PI * 2); ctx.fill();
+          ctx.restore();
+        }
 
         ctx.restore();
       });

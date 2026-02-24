@@ -174,6 +174,7 @@ export interface Player {
   shotsFired?: number;
   shotsHit?: number;
   aliveFrom?: number;
+  burnTimer?: number; // ticks remaining of burning after leaving fire
 }
 
 export interface GameState {
@@ -212,7 +213,8 @@ export type NetworkMessage =
   | { type: 'BARREL_HIT'; barrelId: string }
   | { type: 'PLAYER_HIT'; targetId: string; damage: number; attackerId: string }
   | { type: 'KILL_CREDIT'; killerId: string; victimId: string }
-  | { type: 'PLAYER_INFO'; username: string; skinColor?: string };
+  | { type: 'PLAYER_INFO'; username: string; skinColor?: string }
+  | { type: 'BURN_EFFECT'; targetId: string; duration: number };
 
 export const WORLD_SIZE = 9000;
 
